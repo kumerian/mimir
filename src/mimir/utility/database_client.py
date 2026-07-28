@@ -115,6 +115,20 @@ class DatabaseClient(ABC):
 
         return len(rows)
 
+    def execute(self, query: str, params: Sequence[Any] | None = None) -> None:
+        """Execute a SQL statement and commit when the connection supports it."""
+
+        connection = self._require_connection()
+        cursor = connection.cursor()
+
+        if params is None:
+            cursor.execute(query)
+        else:
+            cursor.execute(query, tuple(params))
+
+        if hasattr(connection, "commit"):
+            connection.commit()
+
     def _placeholder(self, position: int) -> str:
         """Return a positional placeholder for SQL parameter binding."""
 

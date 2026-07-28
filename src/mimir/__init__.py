@@ -9,6 +9,7 @@ from .utility import (
     OracleClient,
     PostgreSQLClient,
 )
+from .metadata import ColumnDefinition, ColumnType, MetadataTableCreator, TableDefinition
 
 __all__ = [
     "DatabaseClient",
@@ -18,5 +19,9 @@ __all__ = [
     "MariaDBClient",
     "MySQLClient",
     "OracleClient",
+    "ColumnType",
+    "ColumnDefinition",
+    "TableDefinition",
+    "MetadataTableCreator",
 ]
 __version__ = "0.1.0"

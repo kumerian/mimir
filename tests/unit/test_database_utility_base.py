@@ -107,6 +107,18 @@ def test_write_table_replace_deletes_existing_rows() -> None:
 
 
 @pytest.mark.unit
+def test_execute_runs_statement_and_commits() -> None:
+    utility = _FakeUtility()
+    utility.connect()
+
+    utility.execute("CREATE TABLE sample_table (id INTEGER)")
+
+    connection = utility._require_connection()
+    assert connection.cursor_instance.executed == [("CREATE TABLE sample_table (id INTEGER)", None)]
+    assert connection.committed is True
+
+
+@pytest.mark.unit
 def test_disconnect_closes_connection() -> None:
     utility = _FakeUtility()
     utility.connect()
