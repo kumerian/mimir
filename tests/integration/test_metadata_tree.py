@@ -262,6 +262,258 @@ def test_get_active_objects_in_source(metadata_tree: Metadata) -> None:
     assert names == {"active_obj", "another_active"}
 
 
+# ---------------------------------------------------------------------------
+# Column level tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_add_column_to_object(metadata_tree: Metadata) -> None:
+    """Test adding a column to an object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(
+        name="customer_id",
+        data_type="INT",
+        is_key=True,
+        is_nullable=False,
+    )
+    assert col.name == "customer_id"
+    assert col.data_type == "INT"
+    assert col.is_key is True
+    assert col.is_nullable is False
+    assert col.object is obj
+
+
+@pytest.mark.integration
+def test_add_duplicate_column_raises_error(metadata_tree: Metadata) -> None:
+    """Test that duplicate columns in an object raise ValueError."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    obj.add_column(name="email")
+    with pytest.raises(ValueError, match="already exists"):
+        obj.add_column(name="email")
+
+
+@pytest.mark.integration
+def test_add_column_with_defaults(metadata_tree: Metadata) -> None:
+    """Test adding a column with default values."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="created_at")
+    # Verify defaults are applied
+    assert col.is_active is True
+    assert col.is_current is True
+    assert col.is_nullable is True
+    assert col.is_key is False
+    assert col.is_metadata is False
+
+
+@pytest.mark.integration
+def test_get_column_by_name(metadata_tree: Metadata) -> None:
+    """Test retrieving a column by name from an object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    added_col = obj.add_column(name="first_name", data_type="VARCHAR")
+    retrieved = obj.get_column("first_name")
+    assert retrieved is added_col
+    assert retrieved.name == "first_name"
+    assert retrieved.data_type == "VARCHAR"
+
+
+@pytest.mark.integration
+def test_get_column_not_found(metadata_tree: Metadata) -> None:
+    """Test that getting a nonexistent column returns None."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    assert obj.get_column("nonexistent") is None
+
+
+@pytest.mark.integration
+def test_get_all_columns_in_object(metadata_tree: Metadata) -> None:
+    """Test retrieving all columns from an object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    obj.add_column(name="id", is_key=True)
+    obj.add_column(name="name")
+    obj.add_column(name="email")
+    columns = obj.get_columns()
+    assert len(columns) == 3
+    names = {c.name for c in columns}
+    assert names == {"id", "name", "email"}
+
+
+@pytest.mark.integration
+def test_get_active_columns(metadata_tree: Metadata) -> None:
+    """Test filtering active columns in an object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    obj.add_column(name="active_col1", is_active=True)
+    obj.add_column(name="inactive_col", is_active=False)
+    obj.add_column(name="active_col2", is_active=True)
+
+    active = obj.get_active_columns()
+    names = {c.name for c in active}
+    assert names == {"active_col1", "active_col2"}
+
+
+@pytest.mark.integration
+def test_get_current_columns(metadata_tree: Metadata) -> None:
+    """Test filtering current columns in an object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    obj.add_column(name="current_col1", is_current=True)
+    obj.add_column(name="old_col", is_current=False)
+    obj.add_column(name="current_col2", is_current=True)
+
+    current = obj.get_current_columns()
+    names = {c.name for c in current}
+    assert names == {"current_col1", "current_col2"}
+
+
+@pytest.mark.integration
+def test_column_has_object_reference(metadata_tree: Metadata) -> None:
+    """Test that columns maintain reference to their object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="email")
+    assert col.object is obj
+    assert col.object.name == "customers"
+
+
+@pytest.mark.integration
+def test_column_has_source_reference(metadata_tree: Metadata) -> None:
+    """Test that columns can access source through object."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="email")
+    assert col.object.source is source
+    assert col.object.source.name == "crm"
+
+
+@pytest.mark.integration
+def test_column_has_metadata_reference(metadata_tree: Metadata) -> None:
+    """Test that columns can access metadata through object/source."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="email")
+    assert col.object.source.metadata is metadata_tree
+
+
+@pytest.mark.integration
+def test_update_column_fields(metadata_tree: Metadata) -> None:
+    """Test updating column fields."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="status", description="Customer status")
+    
+    col.update(description="Updated customer status", is_active=False)
+    
+    # Verify updates were applied to in-memory object
+    assert col.description == "Updated customer status"
+    assert col.is_active is False
+
+
+@pytest.mark.integration
+def test_delete_column(metadata_tree: Metadata) -> None:
+    """Test marking a column as deleted."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(name="legacy_field")
+    
+    assert col.is_active is True
+    assert col.is_current is True
+    
+    col.delete()
+    
+    assert col.is_active is False
+    assert col.is_current is False
+
+
+@pytest.mark.integration
+def test_column_to_dict(metadata_tree: Metadata) -> None:
+    """Test converting a column to dictionary for storage."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(
+        name="email",
+        data_type="VARCHAR",
+        description="Customer email",
+        is_nullable=False,
+    )
+    
+    col_dict = col.to_dict()
+    assert col_dict["name"] == "email"
+    assert col_dict["object_name"] == "customers"
+    assert col_dict["data_type"] == "VARCHAR"
+    assert col_dict["description"] == "Customer email"
+    assert col_dict["is_nullable"] is False
+
+
+@pytest.mark.integration
+def test_multiple_columns_in_object(metadata_tree: Metadata) -> None:
+    """Test an object with multiple columns."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    
+    # Add multiple columns with different properties
+    id_col = obj.add_column(name="id", is_key=True, is_nullable=False)
+    name_col = obj.add_column(name="name", data_type="VARCHAR")
+    email_col = obj.add_column(name="email", data_type="VARCHAR", is_nullable=False)
+    created_col = obj.add_column(name="created_at", data_type="TIMESTAMP")
+    
+    columns = obj.get_columns()
+    assert len(columns) == 4
+    
+    # Verify keys
+    key_cols = [c for c in columns if c.is_key]
+    assert len(key_cols) == 1
+    assert key_cols[0].name == "id"
+
+
+@pytest.mark.integration
+def test_column_functional_name(metadata_tree: Metadata) -> None:
+    """Test setting and retrieving column functional name."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col = obj.add_column(
+        name="cust_id",
+        functional_name="Customer Identifier",
+        description="Unique identifier for customer",
+    )
+    
+    assert col.name == "cust_id"
+    assert col.functional_name == "Customer Identifier"
+    assert col.description == "Unique identifier for customer"
+
+
+@pytest.mark.integration
+def test_column_ordinal_position(metadata_tree: Metadata) -> None:
+    """Test setting column ordinal position."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    col1 = obj.add_column(name="id", ordinal_position=1)
+    col2 = obj.add_column(name="name", ordinal_position=2)
+    col3 = obj.add_column(name="email", ordinal_position=3)
+    
+    # Sort by position
+    columns = sorted(obj.get_columns(), key=lambda c: c.ordinal_position or 0)
+    names = [c.name for c in columns]
+    assert names == ["id", "name", "email"]
+
+
+@pytest.mark.integration
+def test_column_is_metadata_flag(metadata_tree: Metadata) -> None:
+    """Test marking columns as metadata columns."""
+    source = metadata_tree.add_source(name="crm")
+    obj = source.add_object(name="customers")
+    data_col = obj.add_column(name="email", is_metadata=False)
+    meta_col = obj.add_column(name="sys_created_date", is_metadata=True)
+    
+    assert data_col.is_metadata is False
+    assert meta_col.is_metadata is True
+
+
 @pytest.mark.integration
 def test_get_current_objects_in_source(metadata_tree: Metadata) -> None:
     """Test filtering current objects in a source."""

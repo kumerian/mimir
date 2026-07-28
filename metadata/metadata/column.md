@@ -13,7 +13,7 @@ Each row describes one column within an object.
 
 | Column           | Type    | Nullable | Default | Primary Key | Description                                                             |
 |------------------|---------|----------|---------|-------------|-------------------------------------------------------------------------|
-| name             | string  | NO       | —       | NO          | Column name within the object (e.g. `customer_id`).                     |
+| name             | string  | NO       | —       | YES         | Column name within the object (e.g. `customer_id`).                     |
 | object_name      | string  | NO       | —       | YES         | Foreign key reference to the `object` table.                            |
 | functional_name  | string  | YES      | —       | NO          | Human-friendly name or alias for the column.                            |
 | description      | string  | YES      | —       | NO          | Human-readable description of the column's purpose and content.         |

@@ -21,7 +21,16 @@ class SQLDialect(ABC):
         table_name = self.quote_identifier_path(table.name)
         if_not_exists_sql = self._if_not_exists_clause(if_not_exists)
 
-        column_sql = ", ".join(self._column_sql(column) for column in table.columns)
+        # Separate primary key columns from others
+        pk_columns = [col for col in table.columns if col.primary_key]
+        column_sql_parts = [self._column_sql(column) for column in table.columns]
+        
+        # If there are primary key columns, add a composite PRIMARY KEY constraint
+        if pk_columns:
+            pk_names = ", ".join(self.quote_identifier_path(col.name) for col in pk_columns)
+            column_sql_parts.append(f"PRIMARY KEY ({pk_names})")
+        
+        column_sql = ", ".join(column_sql_parts)
 
         return f"CREATE TABLE {if_not_exists_sql}{table_name} ({column_sql})"
 
@@ -37,8 +46,8 @@ class SQLDialect(ABC):
         if column.default is not None:
             parts.append(f"DEFAULT {column.default}")
 
-        if column.primary_key:
-            parts.append("PRIMARY KEY")
+        # Note: PRIMARY KEY is now handled by composite PRIMARY KEY constraint
+        # in create_table_sql, so we don't add it here
 
         return " ".join(parts)
 

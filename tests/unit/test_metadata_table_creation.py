@@ -68,43 +68,43 @@ def _build_table() -> TableDefinition:
             DuckDBClient(),
             True,
             "CREATE TABLE IF NOT EXISTS \"metadata\".\"records\" "
-            "(\"id\" INTEGER NOT NULL PRIMARY KEY, \"title\" VARCHAR(120) NOT NULL, "
-            "\"score\" DECIMAL(12, 4), \"created_at\" TIMESTAMP)",
+            "(\"id\" INTEGER NOT NULL, \"title\" VARCHAR(120) NOT NULL, "
+            "\"score\" DECIMAL(12, 4), \"created_at\" TIMESTAMP, PRIMARY KEY (\"id\"))",
         ),
         (
             PostgreSQLClient(),
             True,
             "CREATE TABLE IF NOT EXISTS \"metadata\".\"records\" "
-            "(\"id\" INTEGER NOT NULL PRIMARY KEY, \"title\" VARCHAR(120) NOT NULL, "
-            "\"score\" DECIMAL(12, 4), \"created_at\" TIMESTAMP)",
+            "(\"id\" INTEGER NOT NULL, \"title\" VARCHAR(120) NOT NULL, "
+            "\"score\" DECIMAL(12, 4), \"created_at\" TIMESTAMP, PRIMARY KEY (\"id\"))",
         ),
         (
             MySQLClient(),
             True,
             "CREATE TABLE IF NOT EXISTS `metadata`.`records` "
-            "(`id` INTEGER NOT NULL PRIMARY KEY, `title` VARCHAR(120) NOT NULL, "
-            "`score` DECIMAL(12, 4), `created_at` TIMESTAMP)",
+            "(`id` INTEGER NOT NULL, `title` VARCHAR(120) NOT NULL, "
+            "`score` DECIMAL(12, 4), `created_at` TIMESTAMP, PRIMARY KEY (`id`))",
         ),
         (
             MariaDBClient(),
             True,
             "CREATE TABLE IF NOT EXISTS `metadata`.`records` "
-            "(`id` INTEGER NOT NULL PRIMARY KEY, `title` VARCHAR(120) NOT NULL, "
-            "`score` DECIMAL(12, 4), `created_at` TIMESTAMP)",
+            "(`id` INTEGER NOT NULL, `title` VARCHAR(120) NOT NULL, "
+            "`score` DECIMAL(12, 4), `created_at` TIMESTAMP, PRIMARY KEY (`id`))",
         ),
         (
             MSSQLClient(),
             False,
             "CREATE TABLE [metadata].[records] "
-            "([id] INT NOT NULL PRIMARY KEY, [title] NVARCHAR(120) NOT NULL, "
-            "[score] DECIMAL(12, 4), [created_at] DATETIME2)",
+            "([id] INT NOT NULL, [title] NVARCHAR(120) NOT NULL, "
+            "[score] DECIMAL(12, 4), [created_at] DATETIME2, PRIMARY KEY ([id]))",
         ),
         (
             OracleClient(),
             False,
             "CREATE TABLE \"metadata\".\"records\" "
-            "(\"id\" NUMBER(10, 0) NOT NULL PRIMARY KEY, \"title\" VARCHAR2(120) NOT NULL, "
-            "\"score\" NUMBER(12, 4), \"created_at\" TIMESTAMP)",
+            "(\"id\" NUMBER(10, 0) NOT NULL, \"title\" VARCHAR2(120) NOT NULL, "
+            "\"score\" NUMBER(12, 4), \"created_at\" TIMESTAMP, PRIMARY KEY (\"id\"))",
         ),
     ],
 )
