@@ -3,7 +3,6 @@ package local
 import (
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -17,13 +16,24 @@ const (
 	fileShareWrite           = 0x00000002
 	fileShareDelete          = 0x00000004
 	fileFlagBackupSemantics  = 0x02000000
+	accessAllowedACEType     = 0
+	accessDeniedACEType      = 1
+	aclSizeInformationClass  = 2
 )
 
+type aclSizeInformation struct {
+	aceCount      uint32
+	aclBytesInUse uint32
+	aclBytesFree  uint32
+}
+
 var (
-	advapi32                              = syscall.NewLazyDLL("advapi32.dll")
-	procConvertStringSecurityDescriptor   = advapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
-	procConvertSecurityDescriptorToString = advapi32.NewProc("ConvertSecurityDescriptorToStringSecurityDescriptorW")
-	procGetNamedSecurityInfo              = advapi32.NewProc("GetNamedSecurityInfoW")
+	advapi32                            = syscall.NewLazyDLL("advapi32.dll")
+	procConvertStringSecurityDescriptor = advapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
+	procGetNamedSecurityInfo            = advapi32.NewProc("GetNamedSecurityInfoW")
+	procGetSecurityDescriptorDACL       = advapi32.NewProc("GetSecurityDescriptorDacl")
+	procGetACLInformation               = advapi32.NewProc("GetAclInformation")
+	procGetACE                          = advapi32.NewProc("GetAce")
 )
 
 func createPrivateDirectory(path string) error {
@@ -69,44 +79,53 @@ func isPrivatePath(path string) bool {
 	}
 	defer syscall.LocalFree(syscall.Handle(descriptor))
 
-	sddl, err := securityDescriptorString(descriptor)
-	if err != nil {
+	var daclPresent, daclDefaulted uint32
+	var dacl uintptr
+	result, _, _ := procGetSecurityDescriptorDACL.Call(
+		descriptor,
+		uintptr(unsafe.Pointer(&daclPresent)),
+		uintptr(unsafe.Pointer(&dacl)),
+		uintptr(unsafe.Pointer(&daclDefaulted)),
+	)
+	if result == 0 || daclPresent == 0 || dacl == 0 {
 		return false
 	}
-	daclStart := strings.Index(sddl, "D:")
-	if daclStart < 0 {
+
+	var aclInfo aclSizeInformation
+	result, _, _ = procGetACLInformation.Call(
+		dacl,
+		uintptr(unsafe.Pointer(&aclInfo)),
+		unsafe.Sizeof(aclInfo),
+		aclSizeInformationClass,
+	)
+	if result == 0 {
 		return false
 	}
-	dacl := sddl[daclStart+2:]
 	allowed := map[string]bool{
 		userSID:        true,
-		"SY":           true,
-		"BA":           true,
 		"S-1-5-18":     true,
 		"S-1-5-32-544": true,
 	}
 	foundUserAccess := false
-	aceCount := 0
-	for len(dacl) > 0 {
-		start := strings.IndexByte(dacl, '(')
-		if start < 0 {
-			break
-		}
-		end := strings.IndexByte(dacl[start+1:], ')')
-		if end < 0 {
+	for i := uint32(0); i < aclInfo.aceCount; i++ {
+		var ace uintptr
+		result, _, _ = procGetACE.Call(dacl, uintptr(i), uintptr(unsafe.Pointer(&ace)))
+		if result == 0 || ace == 0 {
 			return false
 		}
-		ace := strings.Split(dacl[start+1:start+1+end], ";")
-		if len(ace) != 6 || (ace[0] != "A" && ace[0] != "D") || !allowed[ace[5]] {
+		aceType := *(*byte)(unsafe.Pointer(ace))
+		if aceType != accessAllowedACEType && aceType != accessDeniedACEType {
 			return false
 		}
-		if ace[0] == "A" && ace[5] == userSID {
+		sid, err := (*syscall.SID)(unsafe.Pointer(ace + 8)).String()
+		if err != nil || !allowed[sid] {
+			return false
+		}
+		if aceType == accessAllowedACEType && sid == userSID {
 			foundUserAccess = true
 		}
-		aceCount++
-		dacl = dacl[start+end+2:]
 	}
-	return aceCount > 0 && foundUserAccess
+	return aclInfo.aceCount > 0 && foundUserAccess
 }
 
 func syncDirectory(path string) error {
@@ -189,23 +208,6 @@ func namedSecurityDescriptor(path string) (uintptr, error) {
 		return 0, syscall.Errno(result)
 	}
 	return descriptor, nil
-}
-
-func securityDescriptorString(descriptor uintptr) (string, error) {
-	var sddlPointer *uint16
-	var sddlLength uint32
-	result, _, callErr := procConvertSecurityDescriptorToString.Call(
-		descriptor,
-		sddlRevision,
-		daclSecurityInformation,
-		uintptr(unsafe.Pointer(&sddlPointer)),
-		uintptr(unsafe.Pointer(&sddlLength)),
-	)
-	if result == 0 {
-		return "", callError(callErr)
-	}
-	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(sddlPointer))))
-	return syscall.UTF16ToString(unsafe.Slice(sddlPointer, sddlLength)), nil
 }
 
 func callError(err error) error {
