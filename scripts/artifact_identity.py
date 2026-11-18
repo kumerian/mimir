@@ -36,7 +36,7 @@ def create_identity(binary: Path, source_revision: str, working_tree_status: str
 
     try:
         result = subprocess.run(
-            [str(binary), "health"],
+            [str(binary.resolve()), "health"],
             check=False,
             text=True,
             capture_output=True,
