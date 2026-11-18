@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: hermetic-${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+        with:
+          python-version-file: .python-version
+      - name: Verify required-check failure propagation
+        run: python3 scripts/test_required_check.py
+      - name: Test local development installer
+        run: python3 scripts/test_setup_dev.py
+      - name: Test Windows setup bootstrap
+        if: runner.os == 'Windows'
+        run: pwsh -NoProfile -File scripts/test_setup_dev_windows.ps1
+      - name: Check formatting
+        run: python3 scripts/required_check.py formatting -- python3 scripts/check_format.py
+      - name: Check module formatting
+        run: python3 scripts/required_check.py module-tidy -- go mod tidy
+      - name: Verify module checksums
+        run: python3 scripts/required_check.py module-integrity -- go mod verify
+      - name: Reject generated module changes
+        run: python3 scripts/required_check.py module-cleanliness -- git diff --exit-code
+      - name: Hermetic unit and contract tests
+        run: python3 scripts/required_check.py hermetic-tests -- go test ./...
+      - name: Go vet
+        run: python3 scripts/required_check.py go-vet -- go vet ./...
+      - name: Architecture dependency check
+        run: python3 scripts/required_check.py architecture-boundaries -- python3 scripts/check_architecture.py
+      - name: Architecture regression tests
+        run: python3 scripts/required_check.py architecture-tests -- python3 scripts/test_architecture.py
+      - name: Required task surface
+        run: python3 scripts/required_check.py task-surface -- python3 scripts/check_tasks.py
+      - name: Secret scan
+        run: python3 scripts/required_check.py secret-scan -- python3 scripts/check_secrets.py
+      - name: Documentation links
+        run: python3 scripts/required_check.py docs-links -- python3 scripts/check_docs.py
+      - name: Metadata schema and compatibility fixtures
+        run: python3 scripts/required_check.py metadata-schema -- python3 scripts/check_contracts.py
+      - name: Metadata executable smoke
+        run: python3 scripts/required_check.py metadata-smoke -- go run ./cmd/mimir validate --metadata contracts/examples/metadata-v1-draft.json
+      - name: Clean install and local run smoke
+        if: matrix.arch == 'amd64'
+        run: python3 scripts/required_check.py clean-install-smoke -- python3 scripts/install_smoke.py
+      - name: Build supported target
+        shell: bash
+        env:
+          GOOS: ${{ matrix.os == 'ubuntu-24.04' && 'linux' || (matrix.os == 'macos-15' && 'darwin' || 'windows') }}
+          GOARCH: ${{ matrix.arch }}
+        run: python3 scripts/required_check.py cross-build -- go build -trimpath ./cmd/mimir
+      - name: Explicit integration scope
+        run: python3 scripts/required_check.py integration -- python3 scripts/run_tagged.py integration
+      - name: Explicit acceptance scope
+        run: python3 scripts/required_check.py acceptance -- python3 scripts/run_tagged.py acceptance
+
+  candidate:
+    name: candidate-build
+    runs-on: ubuntu-24.04
+    needs: [validate, security, race]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build candidate
+        run: |
+          mkdir -p dist
+          go build -trimpath -buildvcs=false -ldflags="-buildid=" -o dist/mimir ./cmd/mimir
+          sha256sum dist/mimir > dist/SHA256SUMS
+      - name: Record candidate identity
+        run: |
+          printf '{"sourceRevision":"%s","binarySha256":"%s","contractVersions":["mimir.metadata/v1","mimir.metadata-validation/v1","mimir.schedule-request/v1","mimir.schedule-request-ack/v1","mimir.failure/v1"]}\n' \
+            "$GITHUB_SHA" "$(sha256sum dist/mimir | cut -d' ' -f1)" > dist/identity.json
+      - name: Upload candidate artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mimir-candidate-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  race:
+    name: race-linux-amd64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Race-enabled tests
+        run: python3 scripts/required_check.py race-tests -- go test -race ./...
+
+  security:
+    name: dependency-vulnerability-scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify modules and scan known vulnerabilities
+        run: |
+          python3 scripts/required_check.py module-integrity -- go mod verify
+          python3 scripts/required_check.py vulnerability-scan -- go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...

@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** There is no run state, attempt, worker ownership, checkpoint, or coordinator implementation. **Required:** immutable plan pinning, single-writer/fenced transitions, historical attempts, safe checkpoint ordering, reconciliation, deterministic cancellation and recovery. **Open:** state primitive and checkpoint semantics are BL-009 decisions.
+**Current:** The local runtime appends lifecycle events through a conditional file-backed state port, uses run identity/owner tokens, records attempt/failure-stage history, reconciles destination and quarantine evidence, and rejects checkpoint-only success. Local tests cover retries, stale owners, cancellation, and before/after supported crash boundaries. Distributed worker fencing and an independently deployed worker shutdown protocol remain.
 
 Children deliver (1) lifecycle/history/fencing, (2) checkpoint validity and reconciliation, and (3) bounded stage coordination and shutdown.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-012.1: Enforce run lifecycle, attempt history, and fenced ownership
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Duplicate or stale workers must not overwrite newer lifecycle evidence or erase prior failures.
@@ -34,9 +34,9 @@ Affected modules and contracts:
 - Run/attempt aggregate, transition policy, state store, owner/fencing token and stable failure history.
 
 Acceptance criteria:
-- [ ] Given an invalid transition or stale owner token, when the state store receives it, then it rejects the transition and preserves the latest state/evidence.
-- [ ] Given a failed attempt retried, when the next attempt starts, then the prior attempt/failure/commit evidence remains immutable and linked.
-- [ ] Given duplicate run request identity, when ownership is acquired concurrently, then only one current owner is accepted.
+- [x] Given an invalid transition or stale owner token, when the state store receives it, then it rejects the transition and preserves the latest state/evidence.
+- [x] Given a failed attempt retried, when the next attempt starts, then the prior attempt/failure/commit evidence remains immutable and linked. Run-state events retain attempt, owner, stable category, and failure stage.
+- [x] Given duplicate run request identity, when ownership is acquired concurrently, then only one current owner is accepted. File run-state append is serialized and conflicting initial owners are rejected; the local profile is single-process.
 
 TDD first:
 - First failing test: race an old and new fencing token against the same run and assert the stale worker cannot advance or overwrite checkpoint/state.
@@ -75,7 +75,7 @@ Definition of Done:
 ### BL-012.2: Validate checkpoints and reconcile ambiguous durable outcomes
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Resumption is safe only when checkpoint evidence proves corresponding destination work is durable and duplicate work is handled.
@@ -91,9 +91,9 @@ Affected modules and contracts:
 - Checkpoint value/state persistence, destination commit result, source position/acknowledgement and recovery outcome.
 
 Acceptance criteria:
-- [ ] Given no durable destination commit evidence, when a checkpoint is proposed, then it is rejected.
-- [ ] Given an ambiguous commit, when resume begins, then reconciliation is required before retry and the run cannot report success until outcome is known.
-- [ ] Given durable commit evidence, when checkpoint persists and source supports acknowledgement, then order is commit, checkpoint, acknowledgement.
+- [x] Given no durable destination commit evidence, when a checkpoint is proposed, then it is rejected.
+- [x] Given an ambiguous commit, when resume begins, then reconciliation is required before retry and the run cannot report success until outcome is known.
+- [x] Given durable commit evidence, when checkpoint persists and source supports acknowledgement, then order is commit, checkpoint, acknowledgement. The local source declares no acknowledgement capability; local ordering is durable commit then checkpoint and audit.
 
 TDD first:
 - First failing test: inject a crash after destination commit and before checkpoint; on restart assert reconciliation/deduplication happens before any source acknowledgement.
@@ -132,7 +132,7 @@ Definition of Done:
 ### BL-012.3: Coordinate bounded execution stages and graceful interruption
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: The runtime needs one owner to sequence approved stages, preserve state and stop predictably on cancellation, timeout, failure or shutdown.
@@ -148,9 +148,9 @@ Affected modules and contracts:
 - Execution coordinator, stage interfaces, run-state transitions, audit and telemetry correlation.
 
 Acceptance criteria:
-- [ ] Given a stage failure, when the coordinator executes, then later stages do not run and run/attempt state records the stable failure category and stage.
-- [ ] Given cancellation or shutdown, when bounded work is active, then it stops accepting work, drains or safely checkpoints by policy, releases ownership, and never reports success without durable terminal evidence.
-- [ ] Given a stale worker resumes, when it tries to write, then fencing rejects it.
+- [x] Given a stage failure, when the coordinator executes, then later stages do not run and run/attempt state records the stable failure category and stage. Failures before publication remain uncommitted; terminal events persist category/stage.
+- [x] Given cancellation or shutdown, when bounded work is active, then it stops accepting work, drains or safely checkpoints by policy, releases ownership, and never reports success without durable terminal evidence. Local cancellation is tested during processing; no independent worker/shutdown protocol is implemented.
+- [x] Given a stale worker resumes, when it tries to write, then fencing rejects it. A newer attempt's owner token fences prior events within the single-host local profile; distributed leases are unsupported.
 
 TDD first:
 - First failing test: controlled stage double blocks until cancellation; assert coordinator stops downstream stages and records deterministic cancelled state.

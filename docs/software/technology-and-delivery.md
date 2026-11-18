@@ -2,8 +2,13 @@
 
 ## Status
 
-**Proposed technology baseline for the
-[software architecture](../architecture/software-architecture.md).**
+**Accepted initial technology baseline for the
+[software architecture](../architecture/software-architecture.md), as scoped
+by [ADR-0001](../architecture/decisions/ADR-0001-foundation-and-contracts.md)
+and [ADR-0002](../architecture/decisions/ADR-0002-local-reference-profile.md).**
+The first local implementation is smaller than the complete target described
+below; absent capabilities are explicitly not applicable or blocked, not
+silently treated as implemented.
 
 The system remains independent of a particular database, cloud, messaging
 product, workflow engine, data format, or orchestration platform. Decisions in
@@ -36,6 +41,19 @@ dynamic plugin loading or a language-specific application server.
 Other languages may be used by an external transformation, quality, or source
 integration only behind a versioned adapter contract. They must not become
 dependencies of the domain or application modules.
+
+### Accepted first-release baseline
+
+The initial implementation uses Go 1.27.3, a single Go module, and a pinned
+Draft 2020-12 JSON Schema validator as its only non-standard-library runtime
+dependency. The validator and metadata schema are embedded in the binary.
+Repository checks use Python 3.12's standard library and `make` tasks. Metadata
+uses JSON v1 and records use JSON-object contracts. The
+supported build targets are Linux, macOS, and Windows on amd64 and arm64; only
+Linux/amd64 has been exercised as a runtime environment so far. The local
+reference profile is single-process and local-disk only. This does not select a
+production persistence, secret, identity, registry, signing, or deployment
+product.
 
 ## Module Technology Map
 
@@ -252,36 +270,44 @@ tests use a printed seed and must rerun deterministically.
 Local development must provide the same dependency direction and configuration
 shape as deployed environments, without requiring cloud accounts.
 
-The standard local workflow is:
+The intended local workflow is:
 
 1. install the pinned Go toolchain and repository-pinned development tools;
 2. create local configuration from a non-secret example;
-3. provide local secret references through a development resolver;
+3. provide secret references only when a configured adapter consumes them;
 4. run unit and contract tests;
-5. run the application as a single binary with in-process scheduler and
-   development adapters;
-6. use ephemeral containerized dependencies only for adapter integration tests;
+5. run the application as a single binary with local file adapters; schedule
+   evaluation only persists requests and does not dispatch them;
+6. run tagged local-profile integration tests; no external dependency is
+   currently selected;
 7. run lint, vet, and race tests before proposing a change.
 
-Local reference adapters are deterministic and in-repository. They may use
-files, in-memory state, or ephemeral test services. A production backend must
-not become a hidden prerequisite for the default developer workflow.
+Local reference adapters are deterministic and in-repository. The local
+secret-resolver port accepts `env://NAME` in a synchronous callback with a
+bounded context, but is not wired into the current file source/destination
+composition. A production backend must not become a hidden prerequisite for
+the default developer workflow.
 
 Typical commands are standardized through version-controlled task definitions:
 
 ```text
-test          -> fast hermetic tests
-test:race     -> race-enabled core tests
-test:contract -> shared adapter contract suites
-test:int      -> integration suites with ephemeral dependencies
-lint          -> format, vet, static analysis, and dependency checks
-build         -> cross-platform binaries
-package       -> release archives and OCI images
-docs          -> contracts, generated API docs, and link checks
+make test        -> fast hermetic tests
+make test-race   -> race-enabled core tests
+make contract    -> shared adapter contract suites
+make integration -> tagged local-profile integration suites
+make lint        -> format, vet, architecture, and repository checks
+make security    -> secret scan, module verification, vulnerability scan
+make build       -> local binary (CI builds the six supported targets)
+make package     -> deterministic local tar archive and identity manifest
+make install-smoke -> temporary clean install, health, validation, and synthetic run
+make generate-metadata-schema -> copy the canonical v1 schema into the Go embed location
+make docs        -> metadata contract, examples, and link checks
 ```
 
 The task runner is not allowed to embed implementation behavior; these tasks
-must remain invocations of normal Go and validation tools.
+must remain invocations of normal Go and validation tools. Local packages built
+from a dirty working tree are labeled non-candidate and record the working-tree
+status digest.
 
 ## Environments
 
@@ -317,6 +343,13 @@ closed when required configuration, capability, or secret references are
 invalid.
 
 ## CI Pipeline
+
+The current GitHub Actions workflow runs formatting, hermetic tests, vet,
+architecture, documentation, contract, integration-scope, six cross-target
+builds, and a pinned `govulncheck` scan; it builds a candidate artifact with
+revision and binary digest. It does not sign, deploy, promote, or roll back.
+The remainder of this section describes required target behavior, not
+configured deployment capability.
 
 Every pull request and merge runs the following sequence:
 
@@ -451,17 +484,15 @@ The technology baseline is established when:
 
 This document leaves the following product and infrastructure decisions open:
 
-- the supported Go version floor and operating-system/architecture matrix;
-- the task-runner and exact linter configuration;
-- the OpenAPI and JSON Schema generation tools;
-- the canonical binary or streaming record representation;
+- the exact linter configuration;
+- OpenAPI generation/validation tooling for a future API;
 - the authorization protocol and identity provider;
 - whether the initial API and worker are one or separate binaries;
-- the reference metadata, state, and data persistence implementations;
+- production-suitable metadata, state, and data persistence implementations;
 - the container registry and signing/provenance platform;
 - acceptance data provisioning and production smoke permissions;
 - the deployment and rollback mechanism used by each hosted environment.
 
-Those decisions should be captured in focused ADRs before the affected
-delivery capability is implemented. They must preserve the module boundaries,
+The remaining decisions should be captured in focused ADRs before the
+affected delivery capability is implemented. They must preserve the module boundaries,
 artifact promotion model, and platform-neutral contracts defined here.

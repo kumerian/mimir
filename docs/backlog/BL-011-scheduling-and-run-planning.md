@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No scheduler, planner, run-plan type, or scheduling tests exist. **Required:** schedule requests are separate from planning/execution; only active validated metadata and authorized scope yield immutable plans; duplicate requests are idempotent. **Open:** in-process schedule limits and replay policy require BL-001/BL-009 decisions.
+**Current:** Local run plans pin active metadata, source/destination capabilities, ordered stages and rule versions. Fixed-clock schedule evaluation checks windows/dependencies and stores stable deduplicated requests; it does not dispatch runs. Cancellation/shutdown now writes immutable stop acknowledgements and audit evidence without changing run state. External scheduling remains absent.
 
 Children separate eligibility/request semantics, then immutable plan/capability matching and replay preparation.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-011.1: Evaluate in-process schedule eligibility and issue stable run requests
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: An eligible trigger must request a run without owning ingestion logic or mutating execution state.
@@ -34,9 +34,9 @@ Affected modules and contracts:
 - Scheduler port/adapter, schedule metadata, request identity and planner handoff.
 
 Acceptance criteria:
-- [ ] Given eligible and ineligible schedules, when evaluated at a fixed clock, then the scheduler emits only eligible stable requests with deterministic reasons.
-- [ ] Given duplicate delivery with the same request identity, when submitted repeatedly, then one logical request is produced without starting ingestion.
-- [ ] Given cancellation or shutdown, when requests are pending, then they are stopped/acknowledged according to policy without changing run execution state.
+- [x] Given eligible and ineligible schedules, when evaluated at a fixed clock, then the scheduler emits only eligible stable requests with deterministic reasons.
+- [x] Given duplicate delivery with the same request identity, when submitted repeatedly, then one logical request is produced without starting ingestion.
+- [x] Given cancellation or shutdown, when requests are pending, then they are stopped/acknowledged according to policy without changing run execution state.
 
 TDD first:
 - First failing test: fixed-clock schedule test submits the same trigger twice and asserts a single stable request identity.
@@ -75,7 +75,7 @@ Definition of Done:
 ### BL-011.2: Match capabilities and persist immutable safe run plans
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: A request must be rejected before side effects unless all pinned metadata, policies, adapters and delivery guarantees form a safe plan.
@@ -91,9 +91,9 @@ Affected modules and contracts:
 - Planner, run-plan aggregate, capability declarations, metadata/policy/repository/state/audit ports.
 
 Acceptance criteria:
-- [ ] Given only active validated metadata and authorized scope with complete capabilities, when `PlanRun` runs, then the persisted immutable plan records revision, scope, stages, contract/rule versions and delivery guarantee.
-- [ ] Given draft metadata, denied scope, changed/missing capability, or unsupported commit combination, when planning runs, then it returns a stable error and no runnable plan or adapter side effect.
-- [ ] Given a repeated stable request, when planned, then the same logical run identity is returned without duplicate plan creation.
+- [x] Given only active validated metadata and authorized scope with complete capabilities, when `PlanRun` runs, then the persisted immutable plan records revision, scope, stages, contract/rule versions and delivery guarantee.
+- [x] Given draft metadata, denied scope, changed/missing capability, or unsupported commit combination, when planning runs, then it returns a stable error and no runnable plan or adapter side effect.
+- [x] Given a repeated stable request, when planned, then the same logical run identity is returned without duplicate plan creation.
 
 TDD first:
 - First failing test: application test with a destination missing reconciliation capability asserts planning rejects before any adapter method or runnable plan persistence.
@@ -133,7 +133,7 @@ Definition of Done:
 ### BL-011.3: Prepare replay plans only when pinned inputs remain available
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Replay must be explicit, linked to original execution, and honest about unavailable snapshots, positions, adapter versions, or rule versions.
@@ -149,8 +149,8 @@ Affected modules and contracts:
 - Replay planning use case, immutable run plan, source/destination capabilities, metadata and audit.
 
 Acceptance criteria:
-- [ ] Given all pinned source/version/strategy inputs remain available, when replay is prepared, then a new linked plan records original and replay identities and unchanged pinned metadata.
-- [ ] Given a missing/changed required position, adapter contract or rule version, when replay is prepared, then it is rejected or explicitly marked non-deterministic according to approved policy before side effects.
+- [x] Given all pinned source/version/strategy inputs remain available, when replay is prepared, then a new linked plan records original and replay identities and unchanged pinned metadata.
+- [x] Given a missing/changed required position, adapter contract or rule version, when replay is prepared, then it is rejected or explicitly marked non-deterministic according to approved policy before side effects.
 
 TDD first:
 - First failing test: replay fixture changes the source position capability and asserts planning refuses a deterministic replay without creating a runnable plan.

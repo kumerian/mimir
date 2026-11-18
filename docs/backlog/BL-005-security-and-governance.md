@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** There is no source, identity integration, secret resolver, policy, or runtime telemetry. **Required:** secret values stay out of metadata/plans/logs, authorization is enforced at control/planning/runtime boundaries, and data classification constrains use. **Open:** BL-001.3 must define identity inputs, policy, classes, retention, and approval.
+**Current:** Local commands require the explicit `local-user` grant. Activation, discovery, and run enforce the public/internal ceiling at effective object and column scope; denied operations are audited, and opaque `env://NAME` references are validated. A local resolver port is tested for scoping, redaction, cancellation, and clearing its temporary buffer, but it is not wired to source/destination adapters. Hosted identity, production secret management, and telemetry export are absent.
 
 Children cover contract-level secret handling and enforcement/redaction, then classification policy at all decision points. Neither selects an identity provider or secret store.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-005.1: Enforce opaque secret references and bounded resolution
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Credentials must be referenced and resolved just in time without entering core state or outputs.
@@ -35,7 +35,7 @@ Affected modules and contracts:
 
 Acceptance criteria:
 - [ ] Given a resolved synthetic secret, when a plan, error, log, trace, lineage, or audit event is serialized, then the secret value is absent.
-- [ ] Given a denied, unavailable, timed-out, or cancelled reference, when an adapter requests it, then a stable failure is returned and no unscoped operation proceeds.
+- [x] Given a denied, unavailable, timed-out, or cancelled reference, when an adapter requests it, then a stable failure is returned and no unscoped operation proceeds. The local resolver rejects unsupported reference types before invoking the callback, classifies missing values as unavailable, supplies a bounded context, and returns redacted timeout/cancellation failures.
 
 TDD first:
 - First failing test: inject a canary secret into a resolver result and assert recursive serialized outputs contain the reference but never the canary value.
@@ -73,7 +73,7 @@ Definition of Done:
 ### BL-005.2: Enforce authorization and classification at control and planning boundaries
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: User, source, destination, rule, and data-classification policy must be enforced by use cases rather than only by a UI or adapter.
@@ -90,8 +90,8 @@ Affected modules and contracts:
 - Control-plane policy, planning boundary, scoped runtime authorization and audit categories.
 
 Acceptance criteria:
-- [ ] Given an unauthorized author/activator/planner or classified data sent to a prohibited destination, when the use case runs, then it denies the operation before side effects and records a redacted denial category.
-- [ ] Given missing or indeterminate authorization/classification policy, when an action is evaluated, then it fails closed.
+- [x] Given an unauthorized author/activator/planner or classified data sent to a prohibited destination, when the local use case runs, then it denies the operation before publication and records a redacted denial category. Tests also cover previously activated restricted revisions and deny discovery before source access.
+- [x] Given a missing local grant or missing/unknown classification, local activation and execution fail closed. Hosted policy providers are not implemented.
 
 TDD first:
 - First failing test: application test with a denied planning context asserts no run plan is persisted, no adapter is called, and one redacted denial audit intent is produced.

@@ -5,20 +5,20 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** This repository contains architecture and agent documentation, but no source, tests, ADRs, module, CI, or deployment artifacts. The system architecture is Accepted; the software architecture and technology baseline are Proposed. The backlog blocker register records approval, compatibility, security, and delivery decisions as open.
+**Current:** The repository now has a local Go implementation, contracts, tests, CI, and ADR-0001 through ADR-0004. The system architecture is Accepted. The user explicitly delegated the open implementation choices; the ADRs record the conservative decisions and their limits. Independent maintainer review remains required before promotion.
 
-**Required:** Decision records state context, decision, consequences, alternatives, status, owner, and implications; no dependent implementation silently chooses a platform product. This refinement covers BL-001 by making its approval gates independently reviewable. The children below are **Proposed**, not approved architecture decisions.
+**Required:** Decision records state context, decision, consequences, alternatives, status, owner, and implications; no dependent implementation silently chooses a platform product. The children below record delegated decisions as accepted for implementation, not as maintainer-reviewed production approval.
 
-Owner / target milestone for all children: **Open** — no owner or milestone is recorded in the repository; assign before moving any child to Ready.
+Decision authority: the user explicitly delegated these choices to the implementer for this delivery. Independent review owner remains the Mimir maintainers; no target milestone is assigned.
 
-Blocker tracking: For each **Blocked** child, its unresolved dependencies below are the blocker; the next action is to complete the first unresolved prerequisite in that list. Blocker owner is **Open** and must be assigned by maintainers.
+Blocker tracking: local implementation may proceed under the delegation. Items requiring hosted identity, external platforms, or production environments remain blocked with an owner and next action in the canonical backlog.
 
 ## Child work items
 
 ### BL-001.1: Approve the language, package, and local build baseline
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress (delegated decision recorded; independent review pending)
 Priority: P0
 
 Problem: The proposed Go/module/tooling baseline is not yet accepted, so implementation and reproducible-build claims have no approved target.
@@ -34,15 +34,15 @@ Affected modules and contracts:
 - Repository/build boundary, local workflow, schema/OpenAPI toolchain.
 
 Acceptance criteria:
-- [ ] Given the proposed baseline and alternatives, when maintainers approve or defer each choice, then ADRs record the decision/status, owner, rationale, consequences, and affected backlog IDs.
-- [ ] Given any choice deferred, when a dependent child is reviewed, then it remains blocked and no implementation assumes the deferred choice.
+- [x] Given the proposed baseline and alternatives, when the delegated decision is made, then ADRs record decision status, authority, rationale, consequences, and affected backlog IDs.
+- [x] Given any choice deferred, when dependent work is considered, then ADRs identify the later gate and implementation does not assume an unselected infrastructure product.
 
 TDD first:
 - First failing test: add a documentation-validation fixture requiring each decision record to contain Context, Decision/status, Consequences, Alternatives, Owner, and affected items; demonstrate failure against an incomplete draft. Code tests are N/A because this is an architecture decision.
 - Additional coverage: validate Markdown links, ADR status/required headings, and references from BL-001 and BL-002.
 
 Implementation notes:
-- This child resolves only the language/build baseline; a recorded “proposed” choice is not acceptance.
+- ADR-0001 selects Go 1.27.3, the supported build matrix, JSON Schema v1, standard-library runtime, Python documentation checks, and Make task interface. ADR-0002 selects a local file profile. These choices are accepted for this implementation by delegated authority and remain subject to independent review.
 
 Documentation updates:
 - Functional: N/A; no user behavior changes.
@@ -71,7 +71,7 @@ Definition of Done:
 ### BL-001.2: Approve contract, record, and compatibility policy
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress (delegated decision recorded; independent review pending)
 Priority: P0
 
 Problem: Ports, errors, metadata, records, and migration cannot be implemented compatibly until versioning and representations are explicit.
@@ -87,15 +87,15 @@ Affected modules and contracts:
 - Domain values, errors, capabilities, metadata and record contracts, adapter ports.
 
 Acceptance criteria:
-- [ ] Given supported and unsupported version fixtures, when the policy is applied, then each version is classified as compatible, migratable, or rejected with no partial side effect.
-- [ ] Given a proposed record representation, when alternatives are reviewed, then ADRs explicitly preserve adapter-owned transfer formats and do not prescribe destination storage format.
+- [x] Given supported and unsupported version fixtures, when the policy is applied, then initial v1 is accepted and unsupported versions are rejected without partial side effects; no implicit migration is claimed.
+- [x] Given the selected record boundary, when alternatives are recorded, then ADRs preserve adapter-owned transfer formats and do not prescribe destination storage format.
 
 TDD first:
 - First failing test: a documentation/schema check rejects a decision record that omits compatibility direction, unsupported-version behavior, migration, or rollback. Code tests are N/A because this is a policy decision.
 - Additional coverage: link and cross-reference checks for BL-003, BL-004, BL-006, BL-009, and BL-013.
 
 Implementation notes:
-- The architecture names JSON metadata as a proposed technology baseline; acceptance requires BL-001.1/this decision to confirm or revise it.
+- ADR-0001 selects strict JSON metadata v1 and in-process JSON-object records. Unsupported versions and unknown fields fail closed. There is no prior persisted version to migrate.
 
 Documentation updates:
 - Functional: document version guarantees and unsupported-version outcomes once approved.
@@ -124,7 +124,7 @@ Definition of Done:
 ### BL-001.3: Approve authorization, activation, and governance policy
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress (delegated decision recorded; independent review pending)
 Priority: P0
 
 Problem: Authorization inputs, approval authority, classification vocabulary, retention, and audit obligations remain open and affect metadata and run planning.
@@ -140,8 +140,8 @@ Affected modules and contracts:
 - Authoring, discovery, activation, planning, runtime scopes, secret references, audit and telemetry.
 
 Acceptance criteria:
-- [ ] Given authoring, activation, planning, and runtime actions, when the policy is reviewed, then each action has a named decision point and a specified deny behavior.
-- [ ] Given a classification/retention choice that is deferred, when downstream items are refined, then they identify the unresolved policy and remain blocked where required.
+- [x] Given authoring, activation, planning, and runtime actions, when the policy is applied locally, then each action has an explicit local-user decision point and fail-closed denial behavior.
+- [x] Given hosted classification/retention policy that is deferred, downstream items identify it as a production gate and do not claim a hosted control.
 
 TDD first:
 - First failing test: a documentation validation check rejects an ADR missing enforcement points, denial semantics, data classes, retention ownership, or deferred gates. Code tests are N/A because this is a policy decision.
@@ -177,7 +177,7 @@ Definition of Done:
 ### BL-001.4: Approve entrypoint and delivery-boundary decisions
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress (delegated decision recorded; independent review pending)
 Priority: P0
 
 Problem: API/worker packaging, external request model, artifact identity and provenance, and deployment/rollback mechanisms are open.
@@ -193,8 +193,8 @@ Affected modules and contracts:
 - Entrypoints, request envelopes, artifact provenance, release and rollback gates.
 
 Acceptance criteria:
-- [ ] Given candidate entrypoint alternatives, when the decision is approved or deferred, then ADRs state boundaries, ownership, trade-offs, artifact identity, and dependent items.
-- [ ] Given a proposed promotion, when the same-artifact rule is checked, then the policy prohibits rebuilding between test, acceptance, and production.
+- [x] Given candidate entrypoint alternatives, when the delegated decision is made, then ADRs state the local CLI boundary, deferred API/worker scope, artifact identity, and deployment consequences.
+- [x] Given a proposed promotion, when the same-artifact rule is checked, then the policy requires the identical candidate for all environments and gates deployment on protected approvals.
 
 TDD first:
 - First failing test: a documentation/configuration check fails when the ADR omits artifact identity, promotion order, rollback, or deferred product choices. Code tests are N/A because this is an architecture decision.
@@ -229,4 +229,4 @@ Definition of Done:
 
 ## Parent coverage and blockers
 
-Children .1–.4 cover BL-001's baseline/tooling, contract/version, security/governance, and entrypoint/delivery decisions. Checkpoint granularity, concurrency, audit implementation, and reference-adapter products are intentionally reserved for [BL-009](./BL-009-reference-profile.md); they remain open until that profile is approved. No child is Ready because no decision approval or ADR exists in the current repository.
+Children .1–.4 cover BL-001's baseline/tooling, contract/version, security/governance, and entrypoint/delivery decisions. Checkpoint granularity and reference profile are resolved for the local implementation in ADR-0002; distributed concurrency, production audit implementation, hosted identity, signing, deployment products, and external adapters remain explicit later gates. The ADR set is present and validated, but the backlog remains In Progress pending independent maintainer review.

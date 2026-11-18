@@ -330,7 +330,7 @@ remain technology-neutral. At minimum, categories cover:
 - unsupported adapter capability;
 - authentication or authorization;
 - configuration or secret-resolution failure;
-- source or destination availability;
+- timeout, cancellation, source or destination availability;
 - incompatible schema or data contract;
 - transformation or quality-rule failure;
 - non-idempotent or ambiguous commit;

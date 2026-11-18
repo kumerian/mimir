@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No reference adapter, persistence implementation, state format, checkpoint model, or audit journal exists. **Required:** the profile names capabilities and guarantees, remains replaceable through ports, and defines safe commit/checkpoint ordering. **Open:** every concrete reference product and strategy is unselected.
+**Current:** ADR-0002 selects a standard-library local JSONL source, append-only destination, separate metadata/state/data/audit files, owner-only permissions, process lock, tail recovery, deduplicated commit, and checkpoint-after-commit. These decisions are accepted for implementation under user delegation, not production approval.
 
 These are decision items, not implementation work. The three ADRs separate persistence/audit profile, recovery/delivery semantics, and reference source/destination capability profile.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-009.1: Decide the replaceable metadata, state, and audit persistence profile
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem: Metadata/state/audit must be durable and separable, but no backing product or local-reference persistence mechanism is approved.
@@ -35,9 +35,9 @@ Affected modules and contracts:
 - Metadata repository, run-state, audit store, event recovery, local development profile.
 
 Acceptance criteria:
-- [ ] Given the required metadata/state/audit outcomes, when alternatives are evaluated, then an ADR identifies the selected capability profile or explicitly defers it with owner and dependent items.
-- [ ] Given required audit-sink unavailability, when the profile is reviewed, then it defines how the outcome remains recoverable without claiming unsupported atomicity.
-- [ ] Given local and production constraints, when the ADR is approved, then local-reference choices are explicitly not presumed production-ready.
+- [x] Given the required metadata/state/audit outcomes, when alternatives are evaluated, then an ADR identifies the selected capability profile or explicitly defers it with owner and dependent items. ADR-0002 selects local files and expressly defers production products.
+- [x] Given required audit-sink unavailability, when the profile is reviewed, then it defines how the outcome remains recoverable without claiming unsupported atomicity. Required audit append is distinct from best-effort telemetry and is retried/reconciled; no cross-file atomicity is claimed.
+- [x] Given local and production constraints, when the ADR is approved, then local-reference choices are explicitly not presumed production-ready. ADR-0002 states single-process, local-disk-only limitations; independent maintainer review remains a promotion gate.
 
 TDD first:
 - First failing test: documentation validation rejects an ADR without separate data ownership, audit failure behavior, backup/restore, retention, migration, rollback, alternatives and status. Code tests are N/A because this is an architecture decision.
@@ -78,7 +78,7 @@ Definition of Done:
 ### BL-009.2: Decide checkpoint, concurrency, commit, and replay guarantees
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem: Runtime cannot implement safe recovery until durable boundaries, fencing, checkpoint granularity, and replay limits are specified.
@@ -94,9 +94,9 @@ Affected modules and contracts:
 - Run/attempt transitions, source acknowledgement, destination commit, checkpoint, replay and run request identity.
 
 Acceptance criteria:
-- [ ] Given each possible crash boundary from source read through acknowledgement, when the decision is reviewed, then committed/unknown/uncommitted outcomes and recovery action are stated.
-- [ ] Given missing source position or destination reconciliation, when replay is assessed, then deterministic replay is declared unavailable or constrained rather than guaranteed.
-- [ ] Given a concurrent stale worker, when ownership policy is applied, then the required conditional transition/fencing behavior is explicit.
+- [x] Given each possible crash boundary from source read through acknowledgement, when the decision is reviewed, then committed/unknown/uncommitted outcomes and recovery action are stated. ADR-0002 includes the local boundary matrix and notes acknowledgement is unsupported.
+- [x] Given missing source position or destination reconciliation, when replay is assessed, then deterministic replay is declared unavailable or constrained rather than guaranteed. Replay is bounded to unchanged snapshots and reconciled destination identity.
+- [x] Given a concurrent stale worker, when ownership policy is applied, then the required conditional transition/fencing behavior is explicit. Local conditional journal appends and attempt owner tokens do not claim distributed fencing.
 
 TDD first:
 - First failing test: documentation scenario validator rejects a decision that leaves any durable boundary without an outcome/recovery rule. Code tests are N/A because this is a decision.
@@ -135,7 +135,7 @@ Definition of Done:
 ### BL-009.3: Decide minimum reference source and destination capabilities
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem: BL-013 cannot implement a meaningful reference path without an approved capability set and explicit delivery limits.
@@ -151,9 +151,9 @@ Affected modules and contracts:
 - Source/destination adapters, run planner, commit/checkpoint protocol, local setup and test dependencies.
 
 Acceptance criteria:
-- [ ] Given a reference profile, when capabilities are documented, then every supported and unsupported operation and its guarantee/limit is explicit.
-- [ ] Given a repeated batch and an ambiguous commit, when the profile is evaluated, then the required deduplication/reconciliation result is unambiguous.
-- [ ] Given the system's platform-neutral contract, when alternatives are assessed, then no provider-specific behavior leaks into core ports.
+- [x] Given a reference profile, when capabilities are documented, then every supported and unsupported operation and its guarantee/limit is explicit. File, state, audit, telemetry, discovery, and secret adapters declare versioned capabilities and exclusions.
+- [x] Given a repeated batch and an ambiguous commit, when the profile is evaluated, then the required deduplication/reconciliation result is unambiguous. Stable batch identity is reconciled before retry.
+- [x] Given the system's platform-neutral contract, when alternatives are assessed, then no provider-specific behavior leaks into core ports.
 
 TDD first:
 - First failing test: capability-profile validation rejects a profile that lacks a declared stable identity or commit-reconciliation behavior required by BL-009.2. Code tests are N/A because the profile selection is a decision.

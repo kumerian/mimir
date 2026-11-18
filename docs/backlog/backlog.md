@@ -19,7 +19,7 @@ in full.
 
 ## First vertical slice refinements
 
-The confirmed BL-001–BL-014 scope is refined in one document per parent:
+The confirmed BL-001–BL-022 scope is refined in one document per parent:
 
 | Parent | Refinement |
 | --- | --- |
@@ -37,26 +37,33 @@ The confirmed BL-001–BL-014 scope is refined in one document per parent:
 | BL-012 | [Run state and coordinator](./BL-012-run-state-and-coordinator.md) |
 | BL-013 | [Reference data adapters](./BL-013-reference-data-adapters.md) |
 | BL-014 | [End-to-end reference ingestion](./BL-014-end-to-end-reference-ingestion.md) |
+| BL-015 | [Transformation](./BL-015-transformation.md) |
+| BL-016 | [Quality disposition](./BL-016-quality-disposition.md) |
+| BL-017 | [Explicit cleaning](./BL-017-explicit-cleaning.md) |
+| BL-018 | [Replay](./BL-018-replay.md) |
+| BL-019 | [Local entrypoints](./BL-019-entrypoints.md) |
+| BL-020 | [Artifact promotion](./BL-020-artifact-promotion.md) |
+| BL-021 | [Documentation](./BL-021-documentation.md) |
+| BL-022 | [External adapters](./BL-022-external-adapters.md) |
 
 ## Repository baseline and comparison
 
-- **Current:** the repository contains only `README.md`, four documents under
-  `docs/`, and three agent-definition files under `.github/agents/`.
-- **Current:** no source code, tests, Go module, generated contracts, task
-  definitions, CI workflows, deployment configuration, issue templates, ADRs,
-  or pre-existing backlog artifact exists.
-- **Current:** no architecture responsibility is implemented yet. The backlog
-  therefore describes intended capabilities rather than completed behavior.
+- **Current:** the checkout contains a Go module, local CLI, domain and
+  capability contracts, metadata/schema validation, planning, local file
+  adapters, a bounded ingestion runtime, local state/audit journals, and
+  hermetic unit/contract/recovery tests.
+- **Current:** transformations and quality dispositions are integrated into
+  the bounded run; discovery persists proposals, scheduling persists requests
+  without dispatch, cleaning is explicit and separately audited, and replay
+  reconciles the original pinned idempotent batch.
 - **Required:** `docs/architecture/system-architecture.md` is the accepted
-  system baseline.
-- **Proposed:** `docs/architecture/software-architecture.md` and
-  `docs/software/technology-and-delivery.md` refine that baseline but identify
-  their own status as proposed. Their Go, format, tool, and delivery choices
-  are sequencing inputs, not treated here as accepted decisions until BL-001
-  resolves approval status.
-- **Open:** product-specific infrastructure, authorization, persistence,
-  orchestration, record-representation, compatibility, and deployment choices
-  listed below remain unselected.
+  system baseline. The Go, JSON v1, local file profile, finite rule catalogs,
+  and local CLI decisions are recorded in delegated ADRs and await independent
+  maintainer review.
+- **Open/blocked:** hosted authorization, production-grade secret
+  resolution, distributed worker fencing, deployment environments, signing,
+  exact-artifact promotion, and a concrete external adapter target remain
+  unavailable or intentionally unselected.
 
 ## Priority and delivery model
 
@@ -65,6 +72,39 @@ The confirmed BL-001–BL-014 scope is refined in one document per parent:
   operational delivery.
 - **P2** adds replaceable integrations and deployment independence after the
   core behavior is proven.
+
+## Delegated implementation status
+
+Status updated 2026-11-18 under explicit user delegation of the open
+architecture decisions. ADRs are implementer decisions awaiting independent
+maintainer review; this section distinguishes partial implementation from
+acceptance. No item is marked Done because independent review and deployed
+acceptance evidence are not available in this task.
+
+| Item | Status | Verified implementation / remaining boundary |
+| --- | --- | --- |
+| BL-001 | In Progress | Delegated language, JSON v1, local authorization, record, recovery, and delivery decisions recorded in ADR-0001–0004; independent maintainer review pending. |
+| BL-002 | In Progress | Go module, named required-check failure test, CI matrix/candidate identity, all six local cross-builds, and Linux clean-install smoke pass; vulnerability database DNS, signing, hosted CI and acceptance remain blocked/unavailable. |
+| BL-003 | In Progress | Stable failures, typed identifier/attempt/checkpoint invariants, record/policy/rule/secret/capability validation, versioned ports, and local source/destination cause-reference mapping are tested. External adapter failure contracts remain unavailable until adapters are selected. |
+| BL-004 | In Progress | Shared source/destination contracts and deterministic local fault injection cover supported commit, quarantine, checkpoint, audit, and terminal-state boundaries; no previous persisted format or distributed backend migration is claimed. |
+| BL-005 | In Progress | Local-user gate, effective object/column public/internal ceiling at activation/discovery/run, and redacted denial audit are tested. Unsupported credential references fail closed; resolver composition, hosted identity and production secret systems remain absent. |
+| BL-006 | In Progress | Strict JSON v1 is runtime-validated against the pinned embedded Draft 2020-12 schema; deterministic canonicalization/reports, safe diagnostics, duplicate/unknown/version rejection and fixtures pass. The initial v1 format has no prior migration; hosted acceptance remains unavailable. |
+| BL-007 | In Progress | File metadata/reports use versioned ports; immutable validation reports are persisted/queryable and never execution-eligible; authoring, conditional activation, audit and policy resolution are tested. Hosted authorization/storage acceptance remains absent. |
+| BL-008 | In Progress | Local JSONL discovery provider is capability-checked and persists digest-linked schema proposals without changing active metadata; proposal review/application is manual and only the single-object profile is supported. |
+| BL-009 | In Progress | Delegated local profile documents crash outcomes and recovery, commit/checkpoint ordering, tail repair, locks, and permissions; independent approval and production suitability remain pending. |
+| BL-010 | In Progress | Metadata, plan, fenced run-state/checkpoint, data, quarantine/cleaned output, required audit, and best-effort correlated telemetry are separate; metrics/traces exporters, resolver composition, retention policy, and hosted secrets remain absent. |
+| BL-011 | In Progress | Capability-matched immutable plans, fixed-clock schedule slots and stable requests exist; cancellation/shutdown now writes immutable stop acknowledgements/audit without changing run state. Requests do not dispatch; external scheduler acceptance remains absent. |
+| BL-012 | In Progress | File run-state store conditionally appends owner-fenced attempt history and failure stage; local cancellation, checkpoint reconciliation, and supported-boundary crash matrix pass. Distributed leases and worker shutdown protocol remain absent. |
+| BL-013 | In Progress | Local JSONL source/destination ports pass shared contracts, duplicate/reconciliation checks, and timeout/cancellation/denied-scope tests; external adapter certification remains unavailable. |
+| BL-014 | In Progress | Synthetic CLI runs integrate transformations, quality, quarantine, state, audit, and telemetry; local durable/replay fault matrices and clean install smoke pass on Linux/amd64. Local source/destination capability and basic configuration preflight is tested; full composition checks, other native OS smokes, acceptance, and exact-candidate evidence remain outstanding. |
+| BL-015 | In Progress | Ordered `v1` transformations are pinned in plans and integrated with ingestion/provenance; deployed acceptance remains untested. |
+| BL-016 | In Progress | `v1` quality rules, warning/reject/quarantine integration, durable quarantine and recovery are implemented; automatic retention and hosted policy are not provided. |
+| BL-017 | In Progress | Explicit `v1` cleaning has preview, local access/classification checks, separate idempotent persistence, redacted audit and interruption recovery; no hosted authorization or deployed acceptance. |
+| BL-018 | In Progress | CLI replay validates pinned metadata/source/rules/adapter inputs and reconciles the original batch; local replay and run fault matrices now verify restart idempotency. New output-producing replay and external-adapter acceptance remain out of scope. |
+| BL-019 | In Progress | Health, validate, author/list, activate, discovery, schedule, run, clean and replay CLI commands exist; HTTP API, worker, hosted identity and contract-test host remain. |
+| BL-020 | Blocked | Candidate identity/checksum exists. Test/acceptance/production deployment target, human approval configuration, signing, smoke and rollback drill are absent. Next action: operators provision and protect the required environments and signing identity. |
+| BL-021 | In Progress | README and local guides cover implemented behavior; Linux/amd64 clean install and offline whole-directory backup/restore drill pass. Other-target installs, migration and candidate promotion/rollback remain unverified or externally blocked. |
+| BL-022 | Blocked | ADR-0004 explicitly defers external adapters because no concrete integration need or target is evidenced. Next action: a concrete integration requirement with an approved adapter ADR and isolated test resources. |
 
 The proposed increments follow the accepted system delivery order: contracts,
 metadata, planning, runtime, safe reference data movement, transformation,
@@ -75,29 +115,26 @@ independent entrypoints.
 
 | Blocker | Decision owner | Affects | Resolution item |
 | --- | --- | --- | --- |
-| Approval status of the proposed software and technology baselines | Maintainers/architecture authority | Every implementation item | BL-001 |
-| Go floor, OS/architecture matrix, task runner, linter, schema/OpenAPI tooling | Maintainers/delivery owner | BL-002 and all generated/build checks | BL-001 |
-| Contract compatibility, canonical binary/stream record, exact port/error serialization | Architecture authority | BL-003 onward | BL-001 |
-| Authorization model and identity provider | Security/architecture authority | BL-005, BL-011, BL-019 onward | BL-001 |
-| Checkpoint granularity, commit strategies, concurrency primitive, and state format | Architecture/runtime owner | BL-012-BL-018 | BL-001 and BL-009 |
-| Durable audit/outbox mechanism and reference metadata/state/data implementations | Architecture/operations owner | BL-010 onward | BL-009 |
-| Reference source and destination capability set | Product/architecture owner | BL-013-BL-014 | BL-009 |
-| API/worker packaging, external request model, artifact signing/provenance, and deployment/rollback products | Delivery/operations owner | BL-019-BL-021 | BL-001 and BL-020 |
-| Retention, access-control, acceptance-data, and production-smoke policies | Governance/operations owner | BL-005, BL-020-BL-022 | BL-001, BL-005, BL-020 |
+| Independent maintainer review of delegated ADR-0001–0004 and local reference implementation | Maintainers/architecture authority | BL-001 and dependent review/acceptance states | Review this change before promotion |
+| Hosted identity, externally enforced activation approval, and production secret-provider contract | Security/architecture authority | Hosted BL-005, BL-019, BL-020 | Refine when a hosted target is selected |
+| Distributed worker fencing and worker shutdown protocol | Runtime/operations owner | BL-012, BL-014 | Select and provision a multi-worker state-store/deployment profile; local single-host fencing and recovery are implemented |
+| Test/acceptance/production targets, artifact signing, protected approvals, and rollback drill | Repository administrators/environment operators | BL-020 | Provision environments and signing identity |
+| Concrete external adapter use case and isolated test resources | Product/architecture/operations owner | BL-022 | Submit evidence-backed integration request |
+| Production retention, data access, and smoke policies | Governance/operations owner | BL-005, BL-020–BL-022 | Establish with the production service owner |
 
 ## Delivery map
 
 ### BL-001: Approve foundation decisions and ADR set
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
-Implementation cannot safely begin while architecture-significant baseline,
-compatibility, security, and delivery choices are only proposed or remain open.
-This item establishes approved decision records without selecting an unapproved
-infrastructure product.
+The initial implementation needed explicit decisions before local behavior
+could proceed. The user delegated those choices to the implementer; ADR-0001
+through ADR-0004 record the conservative decisions and their limits. Independent
+maintainer review is still required before promotion.
 
 Scope:
 - approve or revise the proposed Go/module boundary and the initial one-process
@@ -111,7 +148,8 @@ Scope:
 - define authorization inputs, activation approval, retention/data classes,
   service-level objectives, and the single-/multi-binary API and worker shape;
 - resolve which remaining choices are prerequisites for each dependent item
-  and record accepted alternatives and consequences as ADRs.
+  and record accepted alternatives and consequences as ADRs. Hosted products
+  and production protocols remain deferred until a concrete target exists.
 
 Out of scope:
 - selecting a database, cloud, orchestrator, message broker, or deployment
@@ -128,12 +166,13 @@ Architecture traceability:
 - `docs/implementation/change-workflow.md` — Impact and Architecture Review.
 
 Acceptance outcomes:
-- [ ] Each open decision has an owner and either an accepted ADR, an explicit
-  later decision gate, or a documented out-of-scope rationale.
-- [ ] BL-001 records which proposed documents and choices are accepted.
-- [ ] Approved decisions preserve platform neutrality, immutable plans,
+- [x] Each open decision has either a delegated ADR, an explicit later
+  decision gate, or a documented out-of-scope rationale.
+- [x] BL-001 records which proposed documents and choices are accepted for
+  this implementation; independent maintainer review remains pending.
+- [x] Decisions preserve platform neutrality, immutable plans,
   adapter substitutability, safe recovery, and the one-artifact promotion model.
-- [ ] Dependent backlog items identify which ADR gates their implementation.
+- [x] Dependent backlog items identify which ADR gates their implementation.
 
 Required evidence:
 - Tests: Not applicable to decisions; validate ADR/links with documentation checks.
@@ -142,14 +181,17 @@ Required evidence:
 - Environments: local, test, acceptance, and production implications recorded per decision.
 
 Open decisions or assumptions:
-- **Open:** all decisions enumerated in the scope remain unresolved.
-- **Assumption:** unapproved infrastructure choices remain technology-neutral
-  capability requirements and must not appear as selected products.
+- **Pending review:** the delegated ADR set awaits independent maintainer
+  review; the user-authorized implementation decisions are recorded as
+  accepted for this local delivery.
+- **Later gates:** hosted authorization, production retention/SLO policy,
+  API/worker protocol, signing service, deployment/rollback platform, and
+  external adapter product remain unselected.
 
 ### BL-002: Establish reproducible Go build, local workflow, and core CI
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -188,7 +230,7 @@ Acceptance outcomes:
   a failing required check.
 - [ ] Supported-platform binaries and reproducible candidate artifacts are
   buildable from the same reviewed source revision.
-- [ ] Local documentation requires no production credentials or undocumented global tool.
+- [x] Local documentation requires no production credentials or undocumented global tool.
 
 Required evidence:
 - Tests: repository smoke, task smoke, tool-pin, generated-artifact freshness, and dependency-policy checks.
@@ -197,14 +239,14 @@ Required evidence:
 - Environments: local and isolated test CI; acceptance packaging inputs defined.
 
 Open decisions or assumptions:
-- **Open:** approved versions, supported platforms, task runner, exact linter
-  and generated-contract tooling, and artifact-signing platform.
-- **Assumption:** a single initial Go module is the default only until BL-001 decides otherwise.
+- Go/module and target matrix are selected for this local delivery. A separate
+  configured linter, semantic JSON Schema generator, OpenAPI tooling, and
+  artifact-signing platform remain later gates; no API currently exists.
 
 ### BL-003: Deliver stable domain, capability, error, and port contracts
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -261,7 +303,7 @@ Open decisions or assumptions:
 ### BL-004: Create reusable contract, dependency, compatibility, and recovery tests
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -311,7 +353,7 @@ Open decisions or assumptions:
 ### BL-005: Enforce secret-reference, authorization, classification, and redaction policy
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -365,7 +407,7 @@ Open decisions or assumptions:
 ### BL-006: Establish versioned metadata contracts and schema validation
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -418,7 +460,7 @@ Open decisions or assumptions:
 ### BL-007: Deliver metadata authoring, validation, activation, and policy resolution
 
 Type: Feature  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -468,7 +510,7 @@ Open decisions or assumptions:
 ### BL-008: Deliver discovery and controlled schema-drift proposals
 
 Type: Feature  
-Status: Proposed  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -514,7 +556,7 @@ Open decisions or assumptions:
 ### BL-009: Approve first reference-adapter and persistence profile
 
 Type: Architecture decision  
-Status: Proposed  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -567,7 +609,7 @@ Open decisions or assumptions:
 ### BL-010: Provide persistence, audit, telemetry, and secret-reference adapters
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -623,7 +665,7 @@ Open decisions or assumptions:
 ### BL-011: Deliver scheduling, capability matching, and immutable run planning
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -675,7 +717,7 @@ Open decisions or assumptions:
 ### BL-012: Deliver run, attempt, checkpoint, fencing, and coordinator semantics
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -724,7 +766,7 @@ Open decisions or assumptions:
 ### BL-013: Deliver source and destination reference adapters with safe commit contracts
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -773,7 +815,7 @@ Open decisions or assumptions:
 ### BL-014: Deliver an end-to-end safe reference ingestion path
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem/outcome:
@@ -827,7 +869,7 @@ Open decisions or assumptions:
 ### BL-015: Deliver normalization and versioned transformation
 
 Type: Feature  
-Status: Proposed  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -878,7 +920,7 @@ Open decisions or assumptions:
 ### BL-016: Deliver quality evaluation, quarantine, and disposition
 
 Type: Feature  
-Status: Proposed  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -926,7 +968,7 @@ Open decisions or assumptions:
 ### BL-017: Deliver explicit, deterministic cleaning with complete provenance
 
 Type: Feature  
-Status: Proposed  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -974,7 +1016,7 @@ Open decisions or assumptions:
 ### BL-018: Deliver deterministic replay and recovery guarantees
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -1026,7 +1068,7 @@ Open decisions or assumptions:
 ### BL-019: Deliver CLI, API, worker, and composition entrypoints
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -1084,7 +1126,7 @@ Open decisions or assumptions:
 ### BL-020: Establish immutable artifact packaging, promotion, and rollback
 
 Type: Technical enabler  
-Status: Blocked  
+Status: Blocked
 Priority: P0
 
 Problem/outcome:
@@ -1137,7 +1179,7 @@ Open decisions or assumptions:
 ### BL-021: Publish complete functional, installation, operations, and acceptance documentation
 
 Type: Documentation  
-Status: Proposed  
+Status: In Progress
 Priority: P1
 
 Problem/outcome:
@@ -1193,7 +1235,7 @@ Open decisions or assumptions:
 ### BL-022: Add independently deployable and platform-specific adapter capabilities
 
 Type: Feature  
-Status: Blocked  
+Status: Blocked
 Priority: P2
 
 Problem/outcome:

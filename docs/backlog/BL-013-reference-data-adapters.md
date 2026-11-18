@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No source/destination adapter or contract suite exists. **Required:** capabilities are declared, source identities/positions are stable per profile, writes are idempotent/reconcilable, and errors are mapped to stable categories. **Open:** BL-009.3 selects or defers actual reference products and guarantees.
+**Current:** Local JSONL source and append-only destination adapters implement the versioned ports and pass shared source/destination conformance tests. Snapshot identity, idempotent commit, reconciliation, durable evidence, timeout/cancellation mapping, denied scope, and unsupported acknowledgement are tested; third-party adapters remain deferred.
 
 Children cover source reads, destination commit/reconciliation, and shared conformance/integration verification. They do not select products.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-013.1: Implement the approved bounded-batch reference source adapter
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: A run needs a deterministic source adapter that exposes exactly its declared scope, identity and position guarantees.
@@ -34,8 +34,8 @@ Affected modules and contracts:
 - Source port, reference source adapter, capability declaration, source record/provenance and secret resolver.
 
 Acceptance criteria:
-- [ ] Given a bounded synthetic scope, when the source is read twice under the same approved snapshot/identity guarantee, then records and positions match the declared contract.
-- [ ] Given unsupported scope, missing capability, cancellation, timeout or source failure, when operation runs, then it returns a stable categorized failure without claiming successful acknowledgement.
+- [x] Given a bounded synthetic scope, when the source is read twice under the same approved snapshot/identity guarantee, then records and positions match the declared contract. The reusable source contract reads the same snapshot twice and compares identities/records.
+- [x] Given unsupported scope, missing capability, cancellation, timeout or source failure, when operation runs, then it returns a stable categorized failure without claiming successful acknowledgement. Local tests cover denied scope, cancellation, timeout, unavailable source, planner capability rejection, and the explicit unsupported acknowledgement capability.
 
 TDD first:
 - First failing test: shared source contract supplies the same synthetic batch twice and asserts stable identity/position semantics from the approved profile.
@@ -74,7 +74,7 @@ Definition of Done:
 ### BL-013.2: Implement destination idempotency, durable commit, and reconciliation
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: The destination must expose durable evidence and reconcile uncertain outcomes before a run can safely checkpoint or retry.
@@ -90,9 +90,9 @@ Affected modules and contracts:
 - Destination port/adapter, commit outcome, idempotency key, reconciliation and checkpoint integration.
 
 Acceptance criteria:
-- [ ] Given duplicate delivery of a committed batch, when the approved idempotency strategy applies, then the observable committed result has no duplicate records.
-- [ ] Given uncertain commit state, when reconcile is requested, then outcome is established or remains explicitly ambiguous; the adapter never silently reports success or blindly retries.
-- [ ] Given crash before/after commit, when operation resumes, then returned evidence allows BL-012 checkpoint policy to decide safely.
+- [x] Given duplicate delivery of a committed batch, when the approved idempotency strategy applies, then the observable committed result has no duplicate records.
+- [x] Given uncertain commit state, when reconcile is requested, then outcome is established or remains explicitly ambiguous; the adapter never silently reports success or blindly retries. Run recovery tests crash after durable commit and reconcile by stable identity before checkpointing.
+- [x] Given crash before/after commit, when operation resumes, then returned evidence allows BL-012 checkpoint policy to decide safely.
 
 TDD first:
 - First failing test: fault-injection test commits a synthetic batch but drops the response; retry path first reconciles and yields one committed result.
@@ -132,7 +132,7 @@ Definition of Done:
 ### BL-013.3: Verify adapters through reusable contract and integration suites
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Reference adapters must demonstrate substitutability and contract-defined failure behavior, not merely pass implementation-specific happy paths.
@@ -148,9 +148,9 @@ Affected modules and contracts:
 - BL-004 harness, BL-013.1/.2 adapters, capability manifests and integration setup.
 
 Acceptance criteria:
-- [ ] Given either reference adapter, when the same shared port suite runs, then it verifies the same externally observable contract assertions.
-- [ ] Given a deliberately omitted capability, when the test matrix runs, then it is declared and planner rejection is tested rather than silently skipped.
-- [ ] Given adapter timeout, cancellation, denied access, and adapter error, when mapped, then stable categories and redacted details are asserted.
+- [x] Given either reference adapter, when the same shared port suite runs, then it verifies the same externally observable contract assertions.
+- [x] Given a deliberately omitted capability, when the test matrix runs, then it is declared and planner rejection is tested rather than silently skipped.
+- [x] Given adapter timeout, cancellation, denied access, and adapter error, when mapped, then stable categories and redacted details are asserted.
 
 TDD first:
 - First failing test: register a reference adapter with a missing capability field and assert the capability-conformance suite fails before adapter acceptance.
