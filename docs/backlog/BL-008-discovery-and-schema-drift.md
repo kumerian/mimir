@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No discovery provider, normalized observation, or schema-drift logic exists. **Required:** discovery creates proposals and never mutates active metadata; drift handling is explicit and policy-governed. **Open:** BL-009 selects any reference provider only after capability needs are clear.
+**Current:** The local JSONL provider observes bounded snapshots, records source-digest provenance, persists a normalized proposal and audit event, and does not change active metadata. Drift classifications are deterministic; proposal acceptance remains a separate manual author/activate operation.
 
 The children separate provider observation/provenance from drift classification and proposal handoff. Together they cover BL-008 without selecting a source technology.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-008.1: Capture normalized discovery observations as proposed metadata
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P1
 
 Problem: Metadata owners need a reproducible view of observed source structure without granting discovery power to modify the active contract.
@@ -34,8 +34,8 @@ Affected modules and contracts:
 - Discovery use case/provider port, normalized observation, proposed metadata revision and audit intent.
 
 Acceptance criteria:
-- [ ] Given a provider with required discovery capability, when discovery runs on a synthetic source, then normalized observations and provenance are persisted as a proposal while active revision remains unchanged.
-- [ ] Given missing capability, timeout, cancellation, or partial observation, when discovery runs, then it returns a classified failure/partial result and performs no active-metadata update.
+- [x] Given a provider with required discovery capability, when discovery runs on a synthetic source, then normalized observations and provenance are persisted as a proposal while active revision remains unchanged. Discovery validates the provider capability before calling it; file observation omits record values.
+- [x] Given missing capability, timeout, cancellation, or partial observation, when discovery runs, then it returns a classified failure/partial result and performs no active-metadata update. Tests cover pre-call capability rejection and timeout/cancellation; malformed/inconsistent snapshots fail before proposal persistence.
 
 TDD first:
 - First failing test: application test invokes discovery with a fake provider and asserts a proposal exists while active revision identity is byte-for-byte unchanged.
@@ -74,7 +74,7 @@ Definition of Done:
 ### BL-008.2: Classify schema drift and route proposals through controlled validation
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P1
 
 Problem: Schema changes need a defined disposition and review path rather than silently broadening active metadata.
@@ -90,9 +90,9 @@ Affected modules and contracts:
 - Drift classifier, metadata compatibility report, proposal workflow, validation/activation ports.
 
 Acceptance criteria:
-- [ ] Given each configured drift class and policy, when an observation is compared, then the same input yields a deterministic disposition, affected scope, and reason.
-- [ ] Given an incompatible or held change, when proposal processing completes, then active revision is unchanged and activation is blocked with an explainable diagnostic.
-- [ ] Given a compatible proposal, when it is submitted, then activation still requires the separate authorized BL-007 path.
+- [x] Given each configured drift class and policy, when an observation is compared, then the same input yields a deterministic disposition, affected scope, and reason. Additive dispositions are table-tested across reject/hold/quarantine/continue; incompatible type/removal changes are covered by hold/continue rejection.
+- [x] Given an incompatible or held change, when proposal processing completes, then active revision is unchanged and activation is blocked with an explainable diagnostic.
+- [x] Given a compatible proposal, when it is submitted, then activation still requires the separate authorized BL-007 path.
 
 TDD first:
 - First failing test: fixture for an incompatible column type change asserts it is classified and cannot change the active revision.

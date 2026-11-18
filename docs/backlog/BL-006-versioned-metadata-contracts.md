@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** There is no metadata schema, parser, validator, or fixture. **Required:** versioned metadata is validated before activation, unknown/duplicate keys and unsupported versions have explicit outcomes, and draft data has no execution authority. **Open:** exact representation and compatibility are subject to BL-001.2; governance fields depend on BL-001.3.
+**Current:** Strict metadata JSON v1 has an executable Draft 2020-12 validator and parser, semantic checks, duplicate/unknown/version rejection, deterministic content-free validation reports, rule-version fixtures, and a synthetic draft example. The exact schema is embedded and freshness-checked. Drafts and reports are not runnable. No previous persisted version exists and migration is not claimed.
 
 Children deliver the schema/domain contract and deterministic parsing/validation compatibility behavior. Persistence and activation are BL-007.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-006.1: Define versioned metadata model and schema surface
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Metadata authoring cannot be validated until technical, functional, scheduling, governance, and rule data have an explicit versioned model.
@@ -34,8 +34,8 @@ Affected modules and contracts:
 - Metadata domain aggregate, JSON/YAML authoring boundary if approved, schemas and examples.
 
 Acceptance criteria:
-- [ ] Given a valid synthetic metadata document for each required entity, when the approved schema validates it, then it yields a versioned candidate with no execution authority.
-- [ ] Given an unknown field, unsupported version, or invalid reference, when schema validation runs, then it returns a specific field/scope diagnostic and does not create an active revision.
+- [x] Given a valid synthetic metadata document for each required entity, when the approved schema validates it, then it yields a versioned candidate with no execution authority.
+- [x] Given an unknown field, unsupported version, or invalid reference, when metadata parsing/validation runs, then it returns a specific safe field/version diagnostic and does not create an active revision. Unknown field names that resemble secret material are redacted; parsing is side-effect free.
 
 TDD first:
 - First failing test: add a fixture with an unknown field and assert validation rejects it without producing an executable revision.
@@ -74,7 +74,7 @@ Definition of Done:
 ### BL-006.2: Parse authoring input and produce deterministic validation reports
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Authoring inputs require deterministic structural, semantic, compatibility, and security validation before they can be used by a use case.
@@ -90,9 +90,9 @@ Affected modules and contracts:
 - Metadata parser/validator, validation report, schema fixtures and diagnostics.
 
 Acceptance criteria:
-- [ ] Given the same valid input, when parsed repeatedly, then its canonical form and validation report are deterministic.
-- [ ] Given duplicate keys, unknown fields, unsupported versions, or semantic violations, when validation runs, then it rejects or flags them according to approved policy without partial side effects.
-- [ ] Given invalid metadata, when a caller asks for execution authority, then no run-eligible revision is returned.
+- [x] Given the same valid input, when parsed repeatedly, then its canonical form and validation report are deterministic.
+- [x] Given duplicate keys, unknown fields, unsupported versions, or semantic violations, when parsing/validation runs, then it rejects them according to the strict v1 policy without partial side effects. Fixtures cover duplicate/unknown/version rejection and invalid opaque references.
+- [x] Given invalid metadata, when a caller asks for execution authority, then no run-eligible revision is returned.
 
 TDD first:
 - First failing test: provide duplicate keys whose values disagree and assert parser rejects the document rather than silently selecting one.

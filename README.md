@@ -18,11 +18,38 @@ Mimir will:
 - validate, profile, and optionally clean ingested data;
 - record execution state and data-quality outcomes for audit and recovery.
 
-The repository is currently at the architectural-definition stage; the
-capabilities below describe the intended product, not yet-implemented
-features.
+The repository has a working Go foundation and a deliberately limited local
+reference ingestion path. The broader toolset below remains intended product
+behavior unless explicitly listed as implemented in
+[`docs/user/local-reference-ingestion.md`](docs/user/local-reference-ingestion.md).
 
-## Toolset
+## Getting started
+
+The local developer prerequisites are Go 1.27.3, `make`, and Python 3.12. Run
+the hermetic checks with:
+
+```sh
+make test
+make lint
+make docs
+make build
+make install-smoke
+```
+
+`make install-smoke` builds into a temporary clean install directory and checks
+health, metadata validation/report lookup, activation, and a synthetic local
+run; it removes the temporary install and data on exit. It verifies the current
+host only. CI also runs this smoke on its native Linux, macOS, and Windows
+runners, while the six-target matrix cross-builds all declared OS/architecture
+combinations.
+
+See the [local reference ingestion guide](docs/user/local-reference-ingestion.md)
+for metadata validation, explicit local activation, a synthetic bounded run,
+supported guarantees, and recovery. The [operations guide](docs/operations/local-reference.md)
+describes local state ownership and recovery. The file-based reference profile
+is not suitable for production.
+
+## Product intent
 
 ### Metadata Management
 

@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No metadata use cases, repository port implementation, audit path, or tests exist. **Required:** drafts have no execution authority; only validated and authorized revisions can be activated; active revisions are immutable and policy resolution is deterministic. **Open:** approval and durable audit decisions remain BL-001.3 and BL-009.
+**Current:** Local authoring/listing, immutable deterministic validation reports, expected-current activation, immutable revisions, audit, active metadata lookup, classification resolution, and concurrency conflict checks are implemented. The file repository and report store are local references only; hosted approval and cross-process storage remain absent.
 
 The three children cover repository-backed candidate history, validation-gated conditional activation/audit, and deterministic policy resolution. Together they satisfy BL-007 while leaving discovery to BL-008 and concrete persistence selection to BL-009/010.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-007.1: Persist candidate metadata revisions and validation reports through a repository port
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Authors need an append-only, inspectable draft/revision workflow that cannot itself authorize execution.
@@ -34,9 +34,9 @@ Affected modules and contracts:
 - Metadata authoring application service, metadata revision, repository and audit-intent ports.
 
 Acceptance criteria:
-- [ ] Given authorized candidate metadata, when authored, then a new immutable draft revision and author audit intent are returned.
-- [ ] Given a draft or failed validation report, when queried for run eligibility, then it is never returned as active/executable.
-- [ ] Given a repository failure or duplicate revision identity, when authoring occurs, then no partially successful revision is reported.
+- [x] Given authorized candidate metadata, when authored, then a new immutable draft revision and author audit intent are returned. The local Author use case composes the file repository port and required audit store.
+- [x] Given a draft or failed validation report, when queried for run eligibility, then it is never returned as active/executable. Draft eligibility is rejected by active-only lookup; persisted reports are immutable, queryable by exact input digest, and always carry `runEligible: false`.
+- [x] Given a repository failure or duplicate revision identity, when authoring occurs, then no partially successful revision is reported. Immutable writes reject conflicting content and the use case returns audit/repository failures rather than success.
 
 TDD first:
 - First failing test: application test authors an invalid candidate and asserts it is persisted only as non-executable draft with immutable validation evidence.
@@ -74,7 +74,7 @@ Definition of Done:
 ### BL-007.2: Validate and conditionally activate immutable metadata revisions
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: A candidate must not authorize execution unless validation and required approval succeed, including during concurrent activation.
@@ -90,9 +90,9 @@ Affected modules and contracts:
 - Metadata validation/activation application service, repository conditional activation, authorization and audit boundaries.
 
 Acceptance criteria:
-- [ ] Given an invalid, stale, unauthorized, or unsupported revision, when activation is requested, then active revision remains unchanged and a redacted failure is recorded.
-- [ ] Given two concurrent incompatible activations, when both race, then at most one becomes active and the other receives a stable conflict.
-- [ ] Given successful activation, when later metadata changes, then the activated revision and runs pinned to it remain unchanged.
+- [x] Given an invalid, stale, unauthorized, or unsupported revision, when activation is requested, then active revision remains unchanged and a redacted failure is recorded.
+- [x] Given two concurrent incompatible activations, when both race, then at most one becomes active and the other receives a stable conflict. Both the repository adapter and control-plane tests cover conditional activation.
+- [x] Given successful activation, when later metadata changes, then the activated revision and runs pinned to it remain unchanged.
 
 TDD first:
 - First failing test: race two activation requests against a controlled repository double and assert exactly one conditional activation succeeds.
@@ -130,7 +130,7 @@ Definition of Done:
 ### BL-007.3: Resolve effective policy deterministically with override provenance
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Planning needs effective source/object/column/rule settings with deterministic precedence and traceable origins.
@@ -146,9 +146,9 @@ Affected modules and contracts:
 - Effective Policy domain service, active metadata lookup and immutable plan inputs.
 
 Acceptance criteria:
-- [ ] Given conflicting source/object/column values, when resolution runs, then the documented precedence is deterministic and each effective value names its origin.
-- [ ] Given an invalid or ambiguous override, when resolution runs, then it returns a stable scoped validation error and no partial policy.
-- [ ] Given a draft or superseded revision, when resolved for a new plan, then it is rejected unless policy explicitly authorizes that revision.
+- [x] Given conflicting source/object/column values, when resolution runs, then the documented precedence is deterministic and each effective value names its origin.
+- [x] Given an invalid or ambiguous override, when resolution runs, then it returns a stable scoped validation error and no partial policy.
+- [x] Given a draft or superseded revision, when resolved for a new plan, then it is rejected unless policy explicitly authorizes that revision.
 
 TDD first:
 - First failing test: table-driven inheritance test with all three override levels asserts exact effective values and origin paths.

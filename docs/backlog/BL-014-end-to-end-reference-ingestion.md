@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** There is no executable application, CLI, health check, run, state, audit, or data path. **Required:** one-process composition must demonstrate validated metadata → immutable plan → bounded raw ingestion → durable commit → checkpoint/ack → run state and audit correlation. **Open:** command surface and all concrete reference profiles remain undecided.
+**Current:** The local CLI composes metadata validation/authoring/activation, immutable planning, bounded JSONL reads, `v1` transformation/quality, durable destination and quarantine, checkpoint, owner-fenced run lifecycle, audit, and correlated telemetry. Tagged local integration, command smoke, durable-boundary recovery, and a clean temporary install/synthetic-run smoke pass on Linux/amd64. CI defines native install smokes for Linux, macOS, and Windows; those hosted runs are not available in this local session. External acceptance and all-target clean-install evidence remain absent.
 
 Children provide composition/local entry, a successful end-to-end slice, then restart/fault/acceptance documentation. Transformations, quality, cleaning, API, external worker and production scale are excluded as parent specifies.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-014.1: Compose approved modules behind a local command and health boundary
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Independently tested modules need a single-process composition path that wires only approved adapters and exposes basic readiness without embedding business transitions.
@@ -34,9 +34,9 @@ Affected modules and contracts:
 - Entrypoint/composition, CLI/local command, health/readiness, adapter registry and application use cases.
 
 Acceptance criteria:
-- [ ] Given valid approved local configuration, when the command starts, then it reports ready with build/contract identity and does not expose secrets.
-- [ ] Given missing/changed required capability or invalid configuration, when startup runs, then it fails closed before accepting a run.
-- [ ] Given a user command, when dispatched, then entrypoint translates input and calls a use case without performing business state transitions itself.
+- [x] Given valid approved local configuration, when the command starts, then it reports ready with build/contract identity and does not expose secrets. The local health command reports binary/contract identity; it is process/build health, not dependency readiness.
+- [ ] Given missing/changed required capability or invalid configuration, when startup runs, then it fails closed before accepting a run. Local startup now checks registered source/destination versions and required guarantees, the source root, and private state directory before a run; full composition-wide capability/configuration validation remains unverified.
+- [x] Given a user command, when dispatched, then entrypoint translates input and calls a use case without performing business state transitions itself.
 
 TDD first:
 - First failing test: composition test omits a required capability and asserts startup returns a stable configuration error without opening source/destination.
@@ -76,7 +76,7 @@ Definition of Done:
 ### BL-014.2: Complete a bounded synthetic raw-ingestion run with correlated outcomes
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Mimir needs an observable end-to-end success path proving control-plane, planning, data movement and state/audit ordering work together.
@@ -93,9 +93,9 @@ Affected modules and contracts:
 - End-to-end use cases, local command, source/destination ports, run state/checkpoint, audit/telemetry and lineage.
 
 Acceptance criteria:
-- [ ] Given valid synthetic metadata and approved capabilities, when a local run executes, then it reaches Succeeded only after destination durable commit, valid checkpoint, applicable acknowledgement, and required audit evidence.
-- [ ] Given the same synthetic run identity is delivered twice, when both requests execute, then one logical result is committed and identities correlate across state, destination, audit and telemetry.
-- [ ] Given invalid metadata, denied destination, missing capability, or ambiguous commit, when execution is attempted, then unsafe publication is prevented or left explicitly unresolved, never reported as success.
+- [x] Given valid synthetic metadata and approved capabilities, when a local run executes, then it reaches Succeeded only after destination durable commit, valid checkpoint, applicable acknowledgement, and required audit evidence. The file source declares acknowledgement unsupported; commit, checkpoint, audit, and terminal state are verified.
+- [x] Given the same synthetic run identity is delivered twice, when both requests execute, then one logical result is committed and identities correlate across state, destination, audit and telemetry.
+- [x] Given invalid metadata, denied destination, missing capability, or ambiguous commit, when execution is attempted, then unsafe publication is prevented or left explicitly unresolved, never reported as success.
 
 TDD first:
 - First failing test: end-to-end synthetic acceptance test asserts identical run/attempt/batch identity across destination commit evidence, checkpoint, audit and telemetry after successful execution.
@@ -136,7 +136,7 @@ Definition of Done:
 ### BL-014.3: Prove restart recovery and publish first-slice operating/install guidance
 
 Type: Feature  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: A happy-path run is insufficient; operators need evidence that interruptions do not duplicate or lose committed work and instructions to recover safely.
@@ -152,7 +152,7 @@ Affected modules and contracts:
 - BL-014 end-to-end harness, run state, destination reconciliation, checkpoint, CLI and operations docs.
 
 Acceptance criteria:
-- [ ] Given every BL-009.2-approved crash boundary, when the process restarts, then it resumes, deduplicates, reconciles, or remains explicitly blocked without success-shaped ambiguity.
+- [x] Given every BL-009.2-approved crash boundary, when the process restarts, then it resumes, deduplicates, reconciles, or remains explicitly blocked without success-shaped ambiguity. Local before/after fault injection covers all supported durable boundaries; source acknowledgement is not supported.
 - [ ] Given the documented clean installation, when executed on each approved local target, then a reviewer can run and clean the synthetic scenario without production accounts or undocumented global tools.
 - [ ] Given the candidate artifact, when acceptance evidence is recorded, then the artifact digest, source revision, configuration/metadata versions and test results are linked.
 

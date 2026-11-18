@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** The repository has no tests, test fixtures, CI, or contract harness. **Required:** hermetic tests by default, reusable adapter conformance, synthetic data, and explicit recovery/compatibility coverage. **Open:** contract and version rules depend on BL-001.2.
+**Current:** Hermetic tests, two independent destination fakes, reusable source/destination suites, architecture dependency tests, tagged local-profile integration, and recovery scenarios exist. Deterministic local fault injection now covers supported durable boundaries. No previous persisted format exists; unsupported metadata/state versions reject before side effects. Distributed-store migration remains untested.
 
 Children establish reusable conformance/dependency checks, then shared fault/compatibility scenarios. They provide test infrastructure rather than product adapters.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-004.1: Establish hermetic port-contract and dependency test harness
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Adapter substitution and module boundaries cannot be independently verified without shared tests.
@@ -34,9 +34,9 @@ Affected modules and contracts:
 - `testing/fixtures`, contract-test consumer surface, module dependency rules.
 
 Acceptance criteria:
-- [ ] Given two independent fake implementations of the same port, when the shared suite runs, then both are checked against the same observable behavior.
-- [ ] Given a deliberately invalid inward dependency, when architecture tests run, then the test fails and identifies the importing boundary.
-- [ ] Given a default test invocation, when run without network or credentials, then the suite is hermetic.
+- [x] Given two independent fake implementations of the same destination port, when the shared suite runs, then both are checked against the same observable behavior.
+- [x] Given a deliberately invalid inward dependency, when architecture tests run, then the test fails and identifies the importing boundary.
+- [x] Given a default test invocation, when run without network or credentials, then the suite is hermetic.
 
 TDD first:
 - First failing test: register a fake port implementation that violates one mandatory contract invariant and demonstrate the shared harness reports that named invariant.
@@ -73,7 +73,7 @@ Definition of Done:
 ### BL-004.2: Add fault-injection, recovery, and concurrency contract scenarios
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Run correctness cannot be established by happy-path adapter tests alone.
@@ -89,16 +89,16 @@ Affected modules and contracts:
 - Recovery test harness, state/source/destination contract scenarios, migration fixtures.
 
 Acceptance criteria:
-- [ ] Given interruption before/after each configured durable boundary, when a scenario resumes, then observable state distinguishes committed, uncommitted, and ambiguous work.
-- [ ] Given duplicate delivery or stale ownership, when the same scenario is rerun, then no newer evidence is overwritten and no duplicate committed result is accepted.
-- [ ] Given an unsupported previous contract version, when compatibility validation runs, then it is rejected before partial migration or side effects.
+- [x] Given interruption before/after each configured durable boundary, when a scenario resumes, then observable state distinguishes committed, uncommitted, and ambiguous work. Local fault injection covers plan audit, attempt start, destination commit, quarantine, checkpoint, run audit, and terminal state; incomplete journal tails cover partial append recovery.
+- [x] Given duplicate delivery or stale ownership, when the same scenario is rerun, then no newer evidence is overwritten and no duplicate committed result is accepted. File run-state contract tests race initial owners, reject stale tokens, preserve prior attempt failures, and bound destination commits to one batch identity.
+- [x] Given an unsupported previous contract version, when compatibility validation runs, then it is rejected before partial migration or side effects. Metadata and run-state v1 reject unsupported versions; v1 is initial, so no prior migration is claimed.
 
 TDD first:
 - First failing test: simulate a crash after a destination commit but before checkpoint persistence; assert resume reconciles/deduplicates instead of blindly retrying.
 - Additional coverage: stale-worker fencing, cancellation, timeout, idempotent retry, migration rollback, deterministic randomized seed.
 
 Implementation notes:
-- Use BL-009's approved durable boundaries; until then this item is blocked and scenarios must not encode a guessed protocol.
+- ADR-0002 selects local JSONL durable boundaries under user-delegated decisions. The tested profile has no source acknowledgement boundary; distributed fencing and deployed acceptance remain out of scope.
 
 Documentation updates:
 - Functional: explain tested recovery guarantees when implemented.

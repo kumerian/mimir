@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "mimir.metadata/v1",
+  "revision": "synthetic-orders-v1",
+  "status": "draft",
+  "sources": [
+    {
+      "id": "synthetic-orders",
+      "classification": "internal",
+      "objects": [
+        {
+          "id": "orders",
+          "path": "orders.jsonl",
+          "columns": [
+            { "id": "order_id", "type": "integer" },
+            { "id": "customer_name", "type": "string" }
+          ]
+        }
+      ]
+    }
+  ]
+}

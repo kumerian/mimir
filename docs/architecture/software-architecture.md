@@ -2,8 +2,23 @@
 
 ## Status
 
-**Proposed software structure for the accepted
-[system architecture](./system-architecture.md).**
+**Accepted initial software structure for the
+[system architecture](./system-architecture.md), with Go module and local
+reference-profile decisions recorded in [ADR-0001](./decisions/ADR-0001-foundation-and-contracts.md)
+and [ADR-0002](./decisions/ADR-0002-local-reference-profile.md).** The current
+implementation is a partial local reference; acceptance of the structure does
+not imply that every listed module or port is implemented.
+
+The current local slice implements strict metadata authoring/activation through
+a file repository, local-file discovery proposals through a provider port,
+immutable plans, fixed-clock schedule requests, a bounded JSONL run with pinned
+`v1` transformation and quality rules, quarantine, separate explicit cleaning,
+replay preparation, local source/destination adapters, a fenced local run-state
+store, append-only audit, and redacted correlated local telemetry. Deterministic
+fault injection covers the local durable boundaries. This is not a production
+profile: scheduling does not dispatch work, replay reconciles the original
+batch, metrics/traces exporters are absent, and hosted identity, distributed
+ownership, and deployment remain absent.
 
 This document refines the system architecture into software boundaries,
 contracts, and execution mechanisms. It does not select a programming
@@ -480,16 +495,13 @@ testable.
 
 The following require focused decisions before the affected implementation:
 
-- programming language and build/package organization;
-- canonical record representation and memory/stream boundary;
 - contract version negotiation and compatibility rules;
 - exact port method signatures and error serialization;
 - authorization model and policy evaluation mechanism;
 - run-state concurrency primitive and checkpoint storage format;
 - durable audit journal or outbox mechanism;
 - worker deployment and request/response model;
-- reference source, destination, and metadata repository for the first
-  release.
+- production-suitable source, destination, and repository adapters.
 
 These decisions may select technologies, but they must not move adapter or
 infrastructure behavior into the domain or application modules.

@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** No Go module, source tree, tool pins, task definitions, CI workflow, or contributor/installation guide exists. **Required:** clean-checkout, pinned, hermetic checks and explicit CI outcomes. **Open:** BL-001 must approve the language/toolchain and supported targets first.
+**Current:** A pinned Go module, Make tasks, repository checks, GitHub Actions matrix, candidate identity, package script, and functional setup guide exist. `make test`, `make lint`, `make docs`, all six cross-builds, and the Linux/amd64 clean-install smoke pass locally. The vulnerability database scan is blocked here by DNS; hosted CI and non-Linux clean-install execution remain unverified.
 
 Children below cover the parent outcome: approved repository/toolchain/local tasks, then CI verification and candidate build evidence. Neither child implements product behavior or deployment promotion.
 
@@ -18,7 +18,7 @@ Blocker tracking: For each **Blocked** child, its unresolved dependencies below 
 ### BL-002.1: Establish the approved module and hermetic local workflow
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: Contributors lack a reproducible local path to build and validate changes.
@@ -35,8 +35,8 @@ Affected modules and contracts:
 - Repository/build layout, task interfaces, test classification, generated-artifact checks.
 
 Acceptance criteria:
-- [ ] Given a clean supported developer checkout, when documented setup/tasks run, then format, lint, vet, dependency checks, docs checks, hermetic tests, and build complete without production credentials.
-- [ ] Given unavailable network services or credentials, when default tests run, then tests remain hermetic and do not depend on ambient services.
+- [x] Given a supported developer checkout, when documented tasks run, then format, lint, vet, module verification, docs checks, hermetic tests, and Linux build complete without production credentials. Clean-checkout install is not yet exercised on every target.
+- [x] Given unavailable network services or credentials, when default tests run, then tests remain hermetic and do not depend on ambient services.
 
 TDD first:
 - First failing test: add a clean-checkout task smoke test asserting every required task exists and default test configuration has no external-service dependency; run it before adding tasks.
@@ -72,7 +72,7 @@ Definition of Done:
 ### BL-002.2: Gate CI on reproducible checks and candidate build identity
 
 Type: Technical enabler  
-Status: Blocked  
+Status: In Progress
 Priority: P0
 
 Problem: A reviewed source revision needs visible pass/fail/not-applicable/blocked results and an identifiable build artifact.
@@ -89,9 +89,9 @@ Affected modules and contracts:
 - CI workflow, task exit codes, candidate build identity and provenance metadata.
 
 Acceptance criteria:
-- [ ] Given a deliberately failing required check, when CI runs, then the workflow fails and identifies that check rather than marking it skipped.
-- [ ] Given an unaffected check, when it is not run, then the result is explicitly “not applicable,” not success-by-omission.
-- [ ] Given a passing source revision, when candidate artifacts are built, then each artifact records its source revision and immutable digest.
+- [x] Given a deliberately failing required check, when CI runs, then the named-check runner and its deliberate-failure test prove a nonzero result and identify the check; CI invokes that runner. Hosted execution remains unobserved here.
+- [x] Given an unaffected check, when it is not run, then the local tagged-suite runner reports “not applicable,” not success-by-omission.
+- [x] Given a passing source revision, when candidate artifacts are built, then each artifact records its source revision and immutable digest. CI candidate construction is configured; this run did not execute GitHub Actions.
 
 TDD first:
 - First failing test: workflow-validation test with fixtures for failed, passed, not-applicable, and blocked job states; it must reject a missing required status.

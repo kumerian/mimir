@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mimir.example/contracts/metadata/v1.schema.json",
+  "title": "Mimir metadata contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "revision", "status", "sources"],
+  "properties": {
+    "schemaVersion": { "const": "mimir.metadata/v1" },
+    "revision": { "$ref": "#/$defs/identifier" },
+    "status": { "enum": ["draft", "active"] },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
+    "secretReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reference"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "reference": { "type": "string", "pattern": "^env://[A-Za-z_][A-Za-z0-9_]{0,127}$" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "classification", "objects"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "classification": { "$ref": "#/$defs/classification" },
+        "objects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/object" }
+        },
+        "secretReferences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/secretReference" }
+        }
+      }
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "path": { "type": "string", "minLength": 1, "pattern": "^[^/:\\\\]+(/[^/:\\\\]+)*$", "not": { "pattern": "\\.\\." } },
+        "classification": { "$ref": "#/$defs/classification" },
+        "columns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/column" }
+        },
+        "transformations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transformRule" }
+        },
+        "qualityRules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/qualityRule" }
+        },
+        "qualityFailureDisposition": {
+          "enum": ["warning", "reject", "quarantine", "hold", "cleaning_required"]
+        },
+        "schedule": { "$ref": "#/$defs/schedule" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "qualityRules": { "minItems": 1 } }, "required": ["qualityRules"] },
+          "then": { "required": ["qualityFailureDisposition"] }
+        },
+        {
+          "if": { "properties": { "transformations": { "contains": { "type": "object", "properties": { "operation": { "const": "rename" } }, "required": ["operation"] } } } },
+          "then": { "properties": { "transformations": { "items": { "if": { "properties": { "operation": { "const": "rename" } }, "required": ["operation"] }, "then": { "required": ["targetField"] } } } } }
+        },
+        {
+          "if": { "properties": { "transformations": { "contains": { "type": "object", "properties": { "operation": { "const": "replace_null" } }, "required": ["operation"] } } } },
+          "then": { "properties": { "transformations": { "items": { "if": { "properties": { "operation": { "const": "replace_null" } }, "required": ["operation"] }, "then": { "required": ["value"] } } } } }
+        }
+      ]
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "type": { "enum": ["string", "number", "integer", "boolean"] },
+        "classification": { "$ref": "#/$defs/classification" }
+      }
+    },
+    "transformRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "operation", "field"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "version": { "const": "v1" },
+        "operation": { "enum": ["trim", "lowercase", "uppercase", "rename", "to_integer", "replace_null"] },
+        "field": { "type": "string", "minLength": 1 },
+        "targetField": { "type": "string", "minLength": 1 },
+        "value": {}
+      }
+    },
+    "qualityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "operation", "field"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "version": { "const": "v1" },
+        "operation": { "enum": ["required", "type", "min", "max", "enum"] },
+        "field": { "type": "string", "minLength": 1 },
+        "expected": { "enum": ["string", "number", "integer", "boolean"] },
+        "number": { "type": "number" },
+        "values": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "intervalSeconds"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "intervalSeconds": { "type": "integer", "minimum": 1, "maximum": 31536000 },
+        "startsAt": { "type": "string", "format": "date-time" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "dependencies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "retryLimit": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "concurrencyLimit": { "type": "integer", "minimum": 0, "maximum": 16 }
+      }
+    }
+  }
+}
