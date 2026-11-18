@@ -33,6 +33,8 @@ test:
 	$(PYTHON) scripts/test_required_check.py
 	$(PYTHON) scripts/test_setup_dev.py
 	$(PYTHON) scripts/test_run_race_tests.py
+	$(PYTHON) scripts/test_artifact_identity.py
+	$(PYTHON) scripts/test_tool_pins.py
 	$(GO) test ./...
 
 test-race:
@@ -55,7 +57,7 @@ lint:
 security:
 	$(PYTHON) scripts/check_secrets.py
 	$(GO) mod verify
-	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
 
 build:
 	$(GO) build -trimpath -ldflags="-buildid=" -o $(BINARY) ./cmd/mimir

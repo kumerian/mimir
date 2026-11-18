@@ -8,14 +8,21 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/kumerian/mimir/internal/cleaning"
+	"github.com/kumerian/mimir/internal/discovery"
+	"github.com/kumerian/mimir/internal/domain"
 	"github.com/kumerian/mimir/internal/local"
 	"github.com/kumerian/mimir/internal/metadata"
+	"github.com/kumerian/mimir/internal/planning"
+	"github.com/kumerian/mimir/internal/ports"
+	"github.com/kumerian/mimir/internal/replay"
 	"github.com/kumerian/mimir/internal/scheduler"
+	"github.com/kumerian/mimir/internal/state"
 )
 
 var (
@@ -52,12 +59,8 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		}
 		return writeJSON(stdout, health{
 			Status: "ready", Version: buildVersion, Commit: buildCommit,
-			Contracts: []string{
-				metadata.ContractVersion, metadata.ValidationReportVersion,
-				scheduler.ContractVersion, scheduler.AcknowledgementContractVersion,
-				"mimir.failure/v1",
-			},
-			Profile: "local-reference-v1",
+			Contracts: contractVersions(),
+			Profile:   "local-reference-v1",
 		})
 	case "validate":
 		flags := flag.NewFlagSet("validate", flag.ContinueOnError)
@@ -310,6 +313,39 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 2
 	}
+}
+
+func contractVersions() []string {
+	versions := []string{
+		metadata.ContractVersion,
+		metadata.ValidationReportVersion,
+		scheduler.ContractVersion,
+		scheduler.AcknowledgementContractVersion,
+		domain.FailureContractVersion,
+		domain.CheckpointContractVersion,
+		planning.RunPlanContractVersion,
+		planning.RecordContractVersion,
+		state.ContractVersion,
+		replay.ContractVersion,
+		discovery.ContractVersion,
+		ports.MetadataRepositoryVersion,
+		ports.MetadataValidationStoreVersion,
+		ports.DiscoveryProviderVersion,
+		ports.SourceAdapterVersion,
+		ports.DestinationAdapterVersion,
+		ports.SchedulerVersion,
+		ports.RunStateStoreVersion,
+		ports.SecretResolverVersion,
+		ports.TransformEngineVersion,
+		ports.QualityEngineVersion,
+		ports.CleaningEngineVersion,
+		ports.AuditStoreVersion,
+		ports.TelemetryVersion,
+	}
+	versions = append(versions, local.ContractVersions()...)
+	versions = append(versions, local.ActivationContractVersion)
+	sort.Strings(versions)
+	return versions
 }
 
 func writeJSON(writer io.Writer, value any) int {

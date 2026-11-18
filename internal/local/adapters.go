@@ -10,13 +10,18 @@ import (
 	"github.com/kumerian/mimir/internal/ports"
 )
 
+const (
+	localSourceContractVersion      = "local.source/v1"
+	localDestinationContractVersion = "local.destination/v1"
+)
+
 type fileSourceAdapter struct {
 	root string
 }
 
 func (a fileSourceAdapter) Capabilities() ports.SourceCapabilities {
 	return ports.SourceCapabilities{
-		Version: "local.source/v1", BoundedSnapshot: true, StableIdentity: true,
+		Version: localSourceContractVersion, BoundedSnapshot: true, StableIdentity: true,
 		SchemaObservation: true, Acknowledgement: false, MaximumBatchRecords: maxSourceRecords,
 	}
 }
@@ -46,7 +51,7 @@ type fileDestinationAdapter struct {
 
 func (a fileDestinationAdapter) Capabilities() ports.DestinationCapabilities {
 	return ports.DestinationCapabilities{
-		Version: "local.destination/v1", IdempotentWrites: true, DurableCommitEvidence: true,
+		Version: localDestinationContractVersion, IdempotentWrites: true, DurableCommitEvidence: true,
 		Reconcile: true, MaximumBatchRecords: maxSourceRecords,
 	}
 }

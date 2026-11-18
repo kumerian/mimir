@@ -26,6 +26,8 @@ type activationPointer struct {
 	ActivatedAt     string `json:"activatedAt"`
 }
 
+const ActivationContractVersion = "mimir.activation/v1"
+
 type ActivationResult struct {
 	Revision string `json:"revision"`
 	Status   string `json:"status"`
@@ -206,7 +208,7 @@ func loadActiveMetadata(stateDir string) (metadata.Parsed, activationPointer, er
 		return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "no active metadata revision is available")
 	}
 	pointer := pointers[len(pointers)-1]
-	if pointer.ContractVersion != "mimir.activation/v1" || pointer.MetadataDigest == "" || digest(raw) != pointer.MetadataDigest {
+	if pointer.ContractVersion != ActivationContractVersion || pointer.MetadataDigest == "" || digest(raw) != pointer.MetadataDigest {
 		return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "active metadata pointer has an unsupported version")
 	}
 	parsed, err := metadata.Parse(bytes.NewReader(raw))

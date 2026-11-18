@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** A pinned Go module, Make tasks, repository checks, GitHub Actions matrix, candidate identity, package script, and functional setup guide exist. `make test`, `make lint`, `make docs`, all six cross-builds, and the Linux/amd64 clean-install smoke pass locally. The vulnerability database scan is blocked here by DNS; hosted CI and non-Linux clean-install execution remain unverified.
+**Current:** A pinned Go module, Make tasks, repository checks, GitHub Actions matrix, candidate identity, package script, and functional setup guide exist. `make test`, `make lint`, `make docs`, all six cross-builds, and the Linux/amd64 clean-install smoke pass locally. Local and CI `govulncheck` now share the same pinned version; a regression test enforces that. Candidate identity is derived from the executable's health contract list, and synthetic tests verify binary hashing, revision/status fields, rejection of incomplete health, and dirty-tree ineligibility. The vulnerability database scan is blocked here by DNS; hosted CI and non-Linux clean-install execution remain unverified.
 
 Children below cover the parent outcome: approved repository/toolchain/local tasks, then CI verification and candidate build evidence. Neither child implements product behavior or deployment promotion.
 
