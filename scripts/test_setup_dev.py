@@ -15,6 +15,18 @@ import setup_dev
 
 
 class SetupDevTests(unittest.TestCase):
+    def test_resolves_installed_pinned_go_on_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            go = home / ".mimir-dev" / "go1.27.3" / "bin" / "go.exe"
+            go.parent.mkdir(parents=True)
+            go.write_bytes(b"synthetic go")
+            self.assertEqual(setup_dev.resolve_go_command(home, "1.27.3", "windows"), str(go))
+
+    def test_missing_pinned_go_falls_back_to_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            self.assertEqual(setup_dev.resolve_go_command(Path(temp), "1.27.3", "windows"), "go")
+
     def test_installs_verified_go_archive_and_reuses_it(self) -> None:
         archive = io.BytesIO()
         with tarfile.open(fileobj=archive, mode="w:gz") as tar:

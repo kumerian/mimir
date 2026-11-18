@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -45,8 +44,7 @@ func Discover(ctx context.Context, options DiscoveryOptions) (DiscoveryResult, e
 	if options.SourceRoot == "" || options.StateDir == "" {
 		return DiscoveryResult{}, domain.NewFailure(domain.FailureInvalidInput, "discovery.plan", "source root and state directory are required")
 	}
-	info, err := os.Stat(options.StateDir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(options.StateDir) {
 		return DiscoveryResult{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "private local metadata directory is unavailable")
 	}
 	lock, err := acquireLock(options.StateDir)

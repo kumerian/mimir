@@ -53,8 +53,7 @@ func replayWithFaultHook(ctx context.Context, options Options, originalRunID, re
 	if _, err := hex.DecodeString(originalRunID); err != nil {
 		return ReplayResult{}, domain.NewFailure(domain.FailureInvalidInput, "replay.prepare", "original run identity is malformed")
 	}
-	stateInfo, err := os.Stat(options.StateDir)
-	if err != nil || !stateInfo.IsDir() || stateInfo.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(options.StateDir) {
 		return ReplayResult{}, domain.NewFailure(domain.FailureInvalidInput, "replay.prepare", "private local state directory is unavailable")
 	}
 	var original persistedPlan

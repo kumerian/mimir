@@ -1,16 +1,39 @@
-GO ?= go
-PYTHON ?= python3
+.DEFAULT_GOAL := help
 
-.PHONY: test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
+ifeq ($(OS),Windows_NT)
+PYTHON ?= py -3.12
+else
+PYTHON ?= python3
+endif
+
+GO ?= $(shell $(PYTHON) scripts/setup_dev.py --print-command)
+
+.PHONY: help test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
+
+help:
+	@echo Available targets:
+	@echo   test                    Run repository checks and Go tests
+	@echo   test-race               Run Go tests with the race detector
+	@echo   contract                Run Go contract tests
+	@echo   integration             Run integration tests
+	@echo   lint                    Run formatting, architecture, and security checks
+	@echo   security                Run security checks
+	@echo   build                   Build the Mimir executable
+	@echo   package                 Build a distributable package
+	@echo   install-smoke           Run the installation smoke test
+	@echo   generate-metadata-schema Generate the metadata schema
+	@echo   docs                    Validate documentation and contracts
+	@echo   clean                   Remove build artifacts
 
 test:
 	$(PYTHON) scripts/check_tasks.py
 	$(PYTHON) scripts/test_required_check.py
 	$(PYTHON) scripts/test_setup_dev.py
+	$(PYTHON) scripts/test_run_race_tests.py
 	$(GO) test ./...
 
 test-race:
-	$(GO) test -race ./...
+	$(PYTHON) scripts/run_race_tests.py --go "$(GO)"
 
 contract:
 	$(GO) test ./...

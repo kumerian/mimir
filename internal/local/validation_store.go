@@ -77,8 +77,7 @@ func (s fileMetadataValidationStore) Load(ctx context.Context, inputDigest strin
 	if err != nil || string(canonical) != string(raw) {
 		return metadata.ValidationReport{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.validation.load", "stored validation report is not canonical")
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateFile(path) {
 		return metadata.ValidationReport{}, domain.NewFailure(domain.FailureAccessDenied, "metadata.validation.load", "validation report permissions must be private to the local user")
 	}
 	return report, nil

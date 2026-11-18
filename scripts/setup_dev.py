@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import subprocess
 import sys
 import tarfile
@@ -61,17 +62,39 @@ def install_go(home: Path, version: str, os_name: str, arch: str) -> Path:
     return destination
 
 
-def main() -> int:
-    if sys.version_info[:2] != (3, 12):
-        raise ValueError("Python 3.12 is required")
+def pinned_version() -> str:
     match = re.search(r"(?m)^toolchain go(\d+\.\d+\.\d+)\s*$", (ROOT / "go.mod").read_text())
     if not match:
         raise ValueError("go.mod does not contain a pinned Go toolchain")
+    return match.group(1)
+
+
+def resolve_go_command(home: Path, version: str, os_name: str) -> str:
+    executable = "go.exe" if os_name == "windows" else "go"
+    go = home / ".mimir-dev" / f"go{version}" / "bin" / executable
+    if not go.is_file():
+        return "go"
+    if os_name == "windows":
+        return subprocess.list2cmdline([str(go)])
+    return shlex.quote(str(go))
+
+
+def main() -> int:
+    if sys.version_info[:2] != (3, 12):
+        raise ValueError("Python 3.12 is required")
+    version = pinned_version()
+    if sys.argv[1:] == ["--print-command"]:
+        os_name = {"Linux": "linux", "Darwin": "darwin", "Windows": "windows"}.get(platform.system())
+        if not os_name:
+            raise ValueError(f"unsupported platform: {platform.system()} {platform.machine()}")
+        print(resolve_go_command(Path.home(), version, os_name))
+        return 0
+    if sys.argv[1:]:
+        raise ValueError(f"unexpected arguments: {' '.join(sys.argv[1:])}")
     os_name = {"Linux": "linux", "Darwin": "darwin", "Windows": "windows"}.get(platform.system())
     arch = {"x86_64": "amd64", "AMD64": "amd64", "aarch64": "arm64", "arm64": "arm64", "ARM64": "arm64"}.get(platform.machine())
     if not os_name or not arch:
         raise ValueError(f"unsupported platform: {platform.system()} {platform.machine()}")
-    version = match.group(1)
     go_root = install_go(Path.home() / ".mimir-dev", version, os_name, arch)
     go = go_root / "bin" / ("go.exe" if os_name == "windows" else "go")
     env = os.environ.copy()

@@ -189,8 +189,7 @@ func runWithHooks(ctx context.Context, options Options, fault, auditFailure func
 	if err != nil || !sourceInfo.IsDir() {
 		return Result{}, domain.NewFailure(domain.FailureInvalidInput, "run.config", "source root must be an accessible directory")
 	}
-	stateInfo, err := os.Stat(options.StateDir)
-	if err != nil || !stateInfo.IsDir() || stateInfo.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(options.StateDir) {
 		return Result{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "no active metadata revision is available")
 	}
 	lock, err := acquireLock(options.StateDir)
@@ -701,8 +700,7 @@ func appendSynced[T any](path string, value T) error {
 	if err != nil {
 		return err
 	}
-	info, statErr := file.Stat()
-	if statErr != nil || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateFile(path) {
 		_ = file.Close()
 		return fmt.Errorf("journal file permissions are not private")
 	}
@@ -797,8 +795,7 @@ func readAndRepairTail[T any](path string) ([]T, error) {
 		return nil, domain.MapAdapterFailure(domain.FailureUnavailable, "journal.open", "journal is unavailable", err)
 	}
 	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateFile(path) {
 		return nil, domain.NewFailure(domain.FailureAccessDenied, "journal.open", "journal permissions must be private to the local user")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, maxSourceBytes*2+1))

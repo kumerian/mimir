@@ -49,8 +49,7 @@ func evaluateSchedules(ctx context.Context, options ScheduleOptions, afterReques
 		}
 		return ScheduleResult{}, domain.NewFailure(domain.FailureAccessDenied, "schedule.evaluate", "explicit local-user authorization is required")
 	}
-	info, err := os.Stat(options.StateDir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(options.StateDir) {
 		return ScheduleResult{}, domain.NewFailure(domain.FailureInvalidInput, "schedule.evaluate", "private local metadata directory is unavailable")
 	}
 	lock, err := acquireLock(options.StateDir)
@@ -164,8 +163,7 @@ func StopPendingScheduleRequests(ctx context.Context, stateDir, actor string, al
 	if reason != "cancelled" && reason != "shutdown" {
 		return domain.NewFailure(domain.FailureInvalidInput, "schedule.stop", "stop reason must be cancelled or shutdown")
 	}
-	info, err := os.Stat(stateDir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(stateDir) {
 		return domain.NewFailure(domain.FailureInvalidInput, "schedule.stop", "private local metadata directory is unavailable")
 	}
 	lock, err := acquireLock(stateDir)

@@ -195,24 +195,37 @@ function Test-PersistentGoPath {
     $goMod = Get-Content (Join-Path $PSScriptRoot '..\go.mod') -Raw
     if ($goMod -notmatch '(?m)^toolchain go(\d+\.\d+\.\d+)\s*$') { throw 'No pinned toolchain.' }
     $goBin = Join-Path $env:USERPROFILE ".mimir-dev\go$($Matches[1])\bin"
+    $originalPath = $env:Path
     $global:mockUserPath = "%LOCALAPPDATA%\Tools;$($goBin.ToUpper())\;C:\other"
     $global:mockUserPathKind = [Microsoft.Win32.RegistryValueKind]::ExpandString
     $global:mockPathWrites = 0
 
-    & $setup
-    if ($global:mockUserPath -cne "$goBin;%LOCALAPPDATA%\Tools;C:\other") {
-        throw "Incorrect user PATH: $global:mockUserPath"
-    }
-    if ($global:mockUserPathKind -ne [Microsoft.Win32.RegistryValueKind]::ExpandString) {
-        throw 'Setup changed the user PATH registry type.'
-    }
-    & $setup
-    if ($global:mockPathWrites -ne 1) { throw 'Setup wrote an unchanged user PATH.' }
+    try {
+        $env:Path = "C:\other;$($goBin.ToUpper())\;$originalPath"
+        & $setup
+        if ($global:mockUserPath -cne "$goBin;%LOCALAPPDATA%\Tools;C:\other") {
+            throw "Incorrect user PATH: $global:mockUserPath"
+        }
+        if ($global:mockUserPathKind -ne [Microsoft.Win32.RegistryValueKind]::ExpandString) {
+            throw 'Setup changed the user PATH registry type.'
+        }
+        $processEntries = @($env:Path -split ';')
+        if ($processEntries[0] -cne $goBin) { throw "Setup did not put pinned Go first in process PATH: $env:Path" }
+        if (@($processEntries | Where-Object { $_.TrimEnd('\') -ieq $goBin }).Count -ne 1) {
+            throw 'Setup did not remove the duplicate Go entry from process PATH.'
+        }
 
-    $global:mockUserPath = $null
-    $global:mockPathWrites = 0
-    & $setup
-    if ($global:mockUserPath -cne $goBin) { throw 'Setup did not create an absent user PATH.' }
+        & $setup
+        if ($global:mockPathWrites -ne 1) { throw 'Setup wrote an unchanged user PATH.' }
+        if (($env:Path -split ';')[0] -cne $goBin) { throw 'Setup did not retain pinned Go at the front of process PATH.' }
+
+        $global:mockUserPath = $null
+        $global:mockPathWrites = 0
+        & $setup
+        if ($global:mockUserPath -cne $goBin) { throw 'Setup did not create an absent user PATH.' }
+    } finally {
+        $env:Path = $originalPath
+    }
 }
 
 function Test-NoPathChangeOnSetupFailure {
@@ -231,13 +244,18 @@ function Test-NoPathChangeOnSetupFailure {
     }
 }
 
-Test-MissingMake
-Test-UnusableMake
-Test-ExistingMakeOutsidePath
-Test-UnsignedMake
-Test-UnsignedMakeOptIn
-Test-InvalidSignatureWithOptIn
-Test-SignedMake
-Test-PersistentGoPath
-Test-NoPathChangeOnSetupFailure
+$originalProcessPath = $env:Path
+try {
+    Test-MissingMake
+    Test-UnusableMake
+    Test-ExistingMakeOutsidePath
+    Test-UnsignedMake
+    Test-UnsignedMakeOptIn
+    Test-InvalidSignatureWithOptIn
+    Test-SignedMake
+    Test-PersistentGoPath
+    Test-NoPathChangeOnSetupFailure
+} finally {
+    $env:Path = $originalProcessPath
+}
 Write-Host 'PASS: Windows setup handles missing, unsigned, invalidly signed, and unusable Make'

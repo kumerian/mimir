@@ -92,8 +92,7 @@ func ListMetadata(stateDir, actor string, allowLocal bool) ([]RevisionSummary, e
 		}
 		return nil, domain.NewFailure(domain.FailureAccessDenied, "metadata.list", "explicit local-user authorization is required")
 	}
-	info, err := os.Stat(stateDir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(stateDir) {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.list", "private local metadata directory is unavailable")
 	}
 	revisions, err := (fileMetadataRepository{stateDir: stateDir}).List(context.Background())
@@ -274,29 +273,17 @@ func ensurePrivateDirectory(path string) error {
 			break
 		}
 	}
-	if err := os.MkdirAll(path, 0o700); err != nil {
-		return err
-	}
-	for _, directory := range missing {
+	for i := len(missing) - 1; i >= 0; i-- {
+		directory := missing[i]
+		if err := createPrivateDirectory(directory); err != nil && !os.IsExist(err) {
+			return err
+		}
 		if err := syncDirectory(filepath.Dir(directory)); err != nil {
 			return err
 		}
 	}
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateDirectory(path) {
 		return fmt.Errorf("directory must be private to the local user")
-	}
-	return nil
-}
-
-func syncDirectory(path string) error {
-	directory, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer directory.Close()
-	if err := directory.Sync(); err != nil {
-		return fmt.Errorf("sync directory: %w", err)
 	}
 	return nil
 }

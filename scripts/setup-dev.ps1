@@ -106,4 +106,6 @@ if ($newUserPath -cne $userPath) {
 } else {
     Write-Host "$goBin is already at the front of the user PATH."
 }
-Write-Host 'Restart applications or sign out and back in to pick up the user PATH. System PATH entries can take precedence.'
+$processPathEntries = @($env:Path -split ';' | Where-Object { $_.TrimEnd('\') -ine $goBin.TrimEnd('\') })
+$env:Path = (@($goBin) + $processPathEntries) -join ';'
+Write-Host 'Pinned Go is available in this PowerShell process. Restart other applications or sign out and back in to pick up the user PATH.'

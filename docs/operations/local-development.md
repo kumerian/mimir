@@ -17,6 +17,13 @@ prerequisites below. Internet access is required for package repositories, Go
 downloads, and module dependencies. The scripts do not install optional
 container tooling or the C compiler required by `make test-race`.
 
+The race detector is an optional development check that instruments concurrent
+Go code and reports unsynchronized shared-memory access. Install a C compiler
+and ensure its executable is on PATH before using `make test-race`; Go can then
+enable CGO for that command. Plain `make test` does not require a C compiler.
+When the compiler is absent, `make test-race` exits with an explicit
+prerequisite error instead of attempting race instrumentation.
+
 ## Automatic setup
 
 Run from a checkout. Review the scripts before running them: package managers
@@ -60,7 +67,15 @@ signature verification. Existing Go installations are not changed. The
 scripts then run `go mod download`, using the normal Go module cache and proxy
 configuration. After successful setup, Windows adds the installed Go `bin`
 directory to the front of the persistent **user** PATH, preserving other
-entries. macOS and Ubuntu do not change persistent PATH settings.
+entries, and to the current setup PowerShell process. Commands launched from
+that PowerShell can use the pinned toolchain immediately. Make also resolves
+the installed toolchain named by `go.mod` directly, so it remains usable from
+a process with an older PATH. macOS and Ubuntu do not change persistent PATH
+settings.
+
+On Windows, local state directories use a restricted ACL for the current user,
+SYSTEM, and local Administrators. Existing files are rejected if their ACL
+grants access to other principals.
 
 ## Configure and verify a development shell
 
@@ -77,11 +92,11 @@ export PATH="$(brew --prefix make)/libexec/gnubin:$(brew --prefix python@3.12)/b
 go version
 python3.12 --version
 make --version
-make PYTHON=python3.12 test
-make PYTHON=python3.12 lint
-make PYTHON=python3.12 docs
-make PYTHON=python3.12 build
-make PYTHON=python3.12 install-smoke
+make test
+make lint
+make docs
+make build
+make install-smoke
 ```
 
 Windows PowerShell: restart applications or sign out and back in to pick up
@@ -95,11 +110,11 @@ $env:GOTOOLCHAIN = 'local'
 go version
 py -3.12 --version
 make --version
-make "PYTHON=py -3.12" test
-make "PYTHON=py -3.12" lint
-make "PYTHON=py -3.12" docs
-make "PYTHON=py -3.12" build
-make "PYTHON=py -3.12" install-smoke
+make test
+make lint
+make docs
+make build
+make install-smoke
 ```
 
 Open a new terminal after package installation if Git, Make, or the Python

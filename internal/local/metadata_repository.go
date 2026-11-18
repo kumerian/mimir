@@ -123,8 +123,7 @@ func (r fileMetadataRepository) LoadActive(ctx context.Context) (json.RawMessage
 	if err != nil || digest(raw) != pointer.MetadataDigest {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "active metadata revision is unavailable or has changed")
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm()&0o077 != 0 {
+	if !isPrivateFile(path) {
 		return nil, domain.NewFailure(domain.FailureAccessDenied, "metadata.active", "active metadata permissions must be private to the local user")
 	}
 	parsed, err := metadata.Parse(bytes.NewReader(raw))
