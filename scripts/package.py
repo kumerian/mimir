@@ -11,7 +11,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-BIN = ROOT / "bin/mimir"
+BIN = ROOT / ("bin/mimir.exe" if (ROOT / "bin/mimir.exe").is_file() else "bin/mimir")
 
 
 def main() -> int:
@@ -44,7 +44,10 @@ def main() -> int:
     with archive_path.open("wb") as raw_archive:
         with gzip.GzipFile(fileobj=raw_archive, mode="wb", mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode="w") as archive:
-                for path, name, mode in ((BIN, "mimir", 0o755), (manifest_path, "manifest.json", 0o644)):
+                for path, name, mode in (
+                    (BIN, "mimir.exe" if BIN.suffix == ".exe" else "mimir", 0o755),
+                    (manifest_path, "manifest.json", 0o644),
+                ):
                     info = tarfile.TarInfo(name)
                     info.size = path.stat().st_size
                     info.mode = mode

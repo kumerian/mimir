@@ -69,25 +69,30 @@ def pinned_version() -> str:
     return match.group(1)
 
 
-def resolve_go_command(home: Path, version: str, os_name: str) -> str:
-    executable = "go.exe" if os_name == "windows" else "go"
-    go = home / ".mimir-dev" / f"go{version}" / "bin" / executable
-    if not go.is_file():
-        return "go"
+def resolve_tool_command(home: Path, version: str, os_name: str, tool: str) -> str:
+    executable = f"{tool}.exe" if os_name == "windows" else tool
+    path = home / ".mimir-dev" / f"go{version}" / "bin" / executable
+    if not path.is_file():
+        return tool
     if os_name == "windows":
-        return subprocess.list2cmdline([str(go)])
-    return shlex.quote(str(go))
+        return subprocess.list2cmdline([str(path)])
+    return shlex.quote(str(path))
+
+
+def resolve_go_command(home: Path, version: str, os_name: str) -> str:
+    return resolve_tool_command(home, version, os_name, "go")
 
 
 def main() -> int:
     if sys.version_info[:2] != (3, 12):
         raise ValueError("Python 3.12 is required")
     version = pinned_version()
-    if sys.argv[1:] == ["--print-command"]:
+    if sys.argv[1:] in (["--print-command"], ["--print-gofmt"]):
         os_name = {"Linux": "linux", "Darwin": "darwin", "Windows": "windows"}.get(platform.system())
         if not os_name:
             raise ValueError(f"unsupported platform: {platform.system()} {platform.machine()}")
-        print(resolve_go_command(Path.home(), version, os_name))
+        tool = "gofmt" if sys.argv[1] == "--print-gofmt" else "go"
+        print(resolve_tool_command(Path.home(), version, os_name, tool))
         return 0
     if sys.argv[1:]:
         raise ValueError(f"unexpected arguments: {' '.join(sys.argv[1:])}")

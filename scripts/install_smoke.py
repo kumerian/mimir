@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build into a clean temporary install and exercise the local CLI end to end."""
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -26,6 +27,9 @@ def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--go", default="go", help="Go executable to use")
+    args = parser.parse_args()
     host = platform.system().lower()
     executable_name = "mimir.exe" if host == "windows" else "mimir"
     with tempfile.TemporaryDirectory(prefix="mimir-clean-install-") as directory:
@@ -35,10 +39,18 @@ def main() -> int:
         build_env = os.environ.copy()
         build_env.pop("GOOS", None)
         build_env.pop("GOARCH", None)
-        result = subprocess.run(
-            ["go", "build", "-trimpath", "-o", str(binary), "./cmd/mimir"],
-            cwd=ROOT, env=build_env, text=True, capture_output=True, check=False,
-        )
+        try:
+            result = subprocess.run(
+                [args.go, "build", "-trimpath", "-o", str(binary), "./cmd/mimir"],
+                cwd=ROOT, env=build_env, text=True, capture_output=True, check=False,
+            )
+        except OSError as error:
+            print(
+                f"FAIL: cannot start Go for the clean install smoke: {error}. "
+                "Run setup-dev to install the repository-pinned toolchain.",
+                file=sys.stderr,
+            )
+            return 2
         if result.returncode:
             print("FAIL: clean install build failed", file=sys.stderr)
             print(result.stderr, file=sys.stderr, end="")

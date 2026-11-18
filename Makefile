@@ -2,11 +2,14 @@
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= py -3.12
+BINARY ?= bin/mimir.exe
 else
 PYTHON ?= python3
+BINARY ?= bin/mimir
 endif
 
 GO ?= $(shell $(PYTHON) scripts/setup_dev.py --print-command)
+GOFMT ?= $(shell $(PYTHON) scripts/setup_dev.py --print-gofmt)
 
 .PHONY: help test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
 
@@ -42,7 +45,7 @@ integration:
 	$(PYTHON) scripts/run_tagged.py integration
 
 lint:
-	$(PYTHON) scripts/check_format.py
+	$(PYTHON) scripts/check_format.py --gofmt "$(GOFMT)"
 	$(GO) vet ./...
 	$(PYTHON) scripts/check_architecture.py
 	$(PYTHON) scripts/test_architecture.py
@@ -55,13 +58,13 @@ security:
 	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
 build:
-	$(GO) build -trimpath -ldflags="-buildid=" -o bin/mimir ./cmd/mimir
+	$(GO) build -trimpath -ldflags="-buildid=" -o $(BINARY) ./cmd/mimir
 
 package: build
 	$(PYTHON) scripts/package.py
 
 install-smoke:
-	$(PYTHON) scripts/install_smoke.py
+	$(PYTHON) scripts/install_smoke.py --go "$(GO)"
 
 generate-metadata-schema:
 	$(PYTHON) scripts/generate_metadata_schema.py

@@ -117,6 +117,11 @@ make build
 make install-smoke
 ```
 
+`make install-smoke` uses the same repository-pinned Go executable as the other
+Make tasks. It builds into a temporary clean install, verifies the CLI's health
+and validation contracts, and runs a synthetic local ingestion. Formatting
+checks likewise use the pinned toolchain's `gofmt`.
+
 Open a new terminal after package installation if Git, Make, or the Python
 launcher is not on PATH. If the Windows installer reports a GNU Make directory
 to add to PATH, add that directory in each development shell as well. Setup

@@ -23,6 +23,14 @@ class SetupDevTests(unittest.TestCase):
             go.write_bytes(b"synthetic go")
             self.assertEqual(setup_dev.resolve_go_command(home, "1.27.3", "windows"), str(go))
 
+    def test_resolves_installed_pinned_gofmt_on_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            gofmt = home / ".mimir-dev" / "go1.27.3" / "bin" / "gofmt.exe"
+            gofmt.parent.mkdir(parents=True)
+            gofmt.write_bytes(b"synthetic gofmt")
+            self.assertEqual(setup_dev.resolve_tool_command(home, "1.27.3", "windows", "gofmt"), str(gofmt))
+
     def test_missing_pinned_go_falls_back_to_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             self.assertEqual(setup_dev.resolve_go_command(Path(temp), "1.27.3", "windows"), "go")

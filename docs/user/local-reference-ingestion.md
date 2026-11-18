@@ -86,7 +86,7 @@ rollback to prior metadata is an explicit activation of a retained revision.
 
 ## First local run
 
-From the repository root:
+From the repository root on macOS or Linux:
 
 ```sh
 make install-smoke
@@ -107,6 +107,33 @@ printf '%s\n' '{"order_id":1,"customer_name":"Example"}' > /tmp/mimir-source/ord
   --state-dir /tmp/mimir-state \
   --allow-local
 ./bin/mimir health
+```
+
+From PowerShell on Windows:
+
+```powershell
+make install-smoke
+make test
+make lint
+make build
+& .\bin\mimir.exe validate --metadata contracts\examples\metadata-v1-draft.json
+$stateDir = Join-Path $env:TEMP 'mimir-state'
+$sourceDir = Join-Path $env:TEMP 'mimir-source'
+New-Item -ItemType Directory -Force -Path $sourceDir | Out-Null
+& .\bin\mimir.exe validate `
+  --metadata contracts\examples\metadata-v1-draft.json `
+  --state-dir $stateDir
+'{"order_id":1,"customer_name":"Example"}' |
+  Set-Content -Encoding utf8 (Join-Path $sourceDir 'orders.jsonl')
+& .\bin\mimir.exe activate `
+  --metadata contracts\examples\metadata-v1-draft.json `
+  --state-dir $stateDir `
+  --allow-local
+& .\bin\mimir.exe run `
+  --source-root $sourceDir `
+  --state-dir $stateDir `
+  --allow-local
+& .\bin\mimir.exe health
 ```
 
 `activate` validates the candidate and records a new active revision; `run`
@@ -214,6 +241,8 @@ Given a synthetic record file `customer.json`:
 
 Preview, then explicitly apply a correction:
 
+On macOS or Linux:
+
 ```sh
 ./bin/mimir clean --record customer.json --state-dir /tmp/mimir-state \
   --classification internal --correction-id trim-name \
@@ -221,6 +250,20 @@ Preview, then explicitly apply a correction:
   --preview --allow-local
 ./bin/mimir clean --record customer.json --state-dir /tmp/mimir-state \
   --classification internal --correction-id trim-name \
+  --correction-version v1 --operation trim --field name --allow-local
+```
+
+In PowerShell on Windows:
+
+```powershell
+& .\bin\mimir.exe clean --record customer.json `
+  --state-dir (Join-Path $env:TEMP 'mimir-state') `
+  --classification internal --correction-id trim-name `
+  --correction-version v1 --operation trim --field name `
+  --preview --allow-local
+& .\bin\mimir.exe clean --record customer.json `
+  --state-dir (Join-Path $env:TEMP 'mimir-state') `
+  --classification internal --correction-id trim-name `
   --correction-version v1 --operation trim --field name --allow-local
 ```
 
