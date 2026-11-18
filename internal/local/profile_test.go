@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -49,5 +50,27 @@ func TestRunRejectsMissingSourceRootBeforeOpeningState(t *testing.T) {
 	var failure domain.Failure
 	if !errors.As(err, &failure) || failure.Category != domain.FailureInvalidInput || failure.Operation != "run.config" {
 		t.Fatalf("invalid source configuration = %v, want run.config rejection", err)
+	}
+}
+
+func TestRunRejectsMissingStateDirectoryAsInvalidConfiguration(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	if err := os.Mkdir(source, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	stateDir := filepath.Join(root, "missing-state")
+	_, err := Run(context.Background(), Options{
+		SourceRoot: source,
+		StateDir:   stateDir,
+		Actor:      "local-user",
+		AllowLocal: true,
+	})
+	var failure domain.Failure
+	if !errors.As(err, &failure) || failure.Category != domain.FailureInvalidInput || failure.Operation != "run.config" {
+		t.Fatalf("invalid state configuration = %v, want run.config rejection", err)
+	}
+	if _, err := os.Stat(stateDir); !os.IsNotExist(err) {
+		t.Fatalf("preflight created invalid state directory: %v", err)
 	}
 }

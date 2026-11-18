@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -16,7 +17,28 @@ func TestHealthReportsBuildAndContractIdentity(t *testing.T) {
 	if code := execute([]string{"health"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("health exit code = %d, stderr=%s", code, stderr.String())
 	}
-	for _, expected := range []string{`"status":"ready"`, `"mimir.metadata/v1"`, `"local-reference-v1"`} {
+	var result health
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("health output is not valid JSON: %v", err)
+	}
+	if !sort.StringsAreSorted(result.Contracts) {
+		t.Fatalf("health contracts are not deterministic: %v", result.Contracts)
+	}
+	seen := make(map[string]bool, len(result.Contracts))
+	for _, contract := range result.Contracts {
+		if seen[contract] {
+			t.Fatalf("health reported duplicate contract %q", contract)
+		}
+		seen[contract] = true
+	}
+	for _, expected := range []string{
+		`"status":"ready"`, `"mimir.metadata/v1"`, `"local-reference-v1"`,
+		`"mimir.run-plan/v1"`, `"mimir.run-state/v1"`, `"mimir.discovery/v1"`,
+		`"local.source/v1"`, `"local.destination/v1"`, `"mimir.secret-resolver/v1"`,
+		`"mimir.run-state-store/v1"`, `"mimir.source-adapter/v1"`,
+		`"mimir.destination-adapter/v1"`, `"mimir.record/json-object/v1"`,
+		`"mimir.replay/v1"`, `"mimir.audit-store/v1"`, `"mimir.telemetry/v1"`,
+	} {
 		if !strings.Contains(stdout.String(), expected) {
 			t.Errorf("health output %q does not contain %q", stdout.String(), expected)
 		}

@@ -5,7 +5,7 @@ Workflow: [`docs/implementation/change-workflow.md`](../implementation/change-wo
 
 ## Outcome and current evidence
 
-**Current:** The local CLI composes metadata validation/authoring/activation, immutable planning, bounded JSONL reads, `v1` transformation/quality, durable destination and quarantine, checkpoint, owner-fenced run lifecycle, audit, and correlated telemetry. Tagged local integration, command smoke, durable-boundary recovery, and a clean temporary install/synthetic-run smoke pass on Linux/amd64. CI defines native install smokes for Linux, macOS, and Windows; those hosted runs are not available in this local session. External acceptance and all-target clean-install evidence remain absent.
+**Current:** The local CLI composes metadata validation/authoring/activation, immutable planning, bounded JSONL reads, `v1` transformation/quality, durable destination and quarantine, checkpoint, owner-fenced run lifecycle, audit, and correlated telemetry. Run preflight rejects absent or non-private state directories with a stable `run.config` failure before creating state or reading source records. Tagged local integration, command smoke, durable-boundary recovery, and a clean temporary install/synthetic-run smoke pass on Linux/amd64. CI defines native install smokes for Linux, macOS, and Windows; those hosted runs are not available in this local session. External acceptance and all-target clean-install evidence remain absent.
 
 Children provide composition/local entry, a successful end-to-end slice, then restart/fault/acceptance documentation. Transformations, quality, cleaning, API, external worker and production scale are excluded as parent specifies.
 

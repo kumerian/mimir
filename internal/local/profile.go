@@ -12,8 +12,14 @@ func CheckProfile() error {
 	return validateLocalProfile((fileSourceAdapter{}).Capabilities(), (fileDestinationAdapter{}).Capabilities())
 }
 
+// ContractVersions returns the concrete source and destination contracts
+// compiled into the local reference profile.
+func ContractVersions() []string {
+	return []string{localSourceContractVersion, localDestinationContractVersion}
+}
+
 func validateLocalProfile(source ports.SourceCapabilities, destination ports.DestinationCapabilities) error {
-	if source.Version != "local.source/v1" || destination.Version != "local.destination/v1" ||
+	if source.Version != localSourceContractVersion || destination.Version != localDestinationContractVersion ||
 		source.MaximumBatchRecords != maxSourceRecords || destination.MaximumBatchRecords != maxSourceRecords ||
 		source.Acknowledgement || !source.SchemaObservation {
 		return domain.NewFailure(domain.FailureUnsupportedCapability, "profile.startup", "local reference adapter capability does not match the approved profile")

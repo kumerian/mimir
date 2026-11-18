@@ -190,7 +190,7 @@ func runWithHooks(ctx context.Context, options Options, fault, auditFailure func
 		return Result{}, domain.NewFailure(domain.FailureInvalidInput, "run.config", "source root must be an accessible directory")
 	}
 	if !isPrivateDirectory(options.StateDir) {
-		return Result{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "no active metadata revision is available")
+		return Result{}, domain.NewFailure(domain.FailureInvalidInput, "run.config", "state directory must exist and be private to the local user")
 	}
 	lock, err := acquireLock(options.StateDir)
 	if err != nil {

@@ -115,7 +115,7 @@ func (r fileMetadataRepository) LoadActive(ctx context.Context) (json.RawMessage
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "no active metadata revision is available")
 	}
 	pointer := pointers[len(pointers)-1]
-	if pointer.ContractVersion != "mimir.activation/v1" || pointer.MetadataDigest == "" || pointer.Revision == "" {
+	if pointer.ContractVersion != ActivationContractVersion || pointer.MetadataDigest == "" || pointer.Revision == "" {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "active metadata pointer has an unsupported version")
 	}
 	path := filepath.Join(r.stateDir, "metadata", "revisions", pointer.MetadataDigest+".json")
@@ -199,7 +199,7 @@ func (r fileMetadataRepository) Activate(ctx context.Context, raw json.RawMessag
 		return "", err
 	}
 	pointer := activationPointer{
-		ContractVersion: "mimir.activation/v1", Revision: parsed.Document.Revision,
+		ContractVersion: ActivationContractVersion, Revision: parsed.Document.Revision,
 		MetadataDigest: metadataDigest, ActivatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if previous.Revision == pointer.Revision && previous.MetadataDigest == pointer.MetadataDigest {

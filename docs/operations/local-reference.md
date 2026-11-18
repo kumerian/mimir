@@ -136,6 +136,7 @@ directories. Do not use production or personal data in this profile.
 | `ambiguous_commit` | Destination write result is uncertain. Rerun unchanged inputs to reconcile; do not blindly retry edited data. |
 | `journal ... malformed` | A complete journal entry is corrupt. Preserve the directory and escalate; the application does not discard complete evidence. |
 | `metadata.validation.load` | The report digest is invalid, missing, or its immutable file failed integrity/permission checks. Confirm the exact original input digest and state-directory integrity. |
+| `run.config` | The source root is unavailable or the state directory is missing/not private. Correct the local paths/permissions before retrying; preflight does not create run state or read source records. |
 | State directory is owned | Another process has `LOCK`, or a prior process exited unexpectedly. Verify process ownership before clearing it. |
 | Readiness is `ready` but a run fails | `health` checks built-in capability registration, not filesystem or full run readiness. Validate metadata, source path, and local permissions. |
 

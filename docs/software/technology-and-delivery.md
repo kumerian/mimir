@@ -346,8 +346,13 @@ invalid.
 
 The current GitHub Actions workflow runs formatting, hermetic tests, vet,
 architecture, documentation, contract, integration-scope, six cross-target
-builds, and a pinned `govulncheck` scan; it builds a candidate artifact with
-revision and binary digest. It does not sign, deploy, promote, or roll back.
+builds, and a pinned `govulncheck` scan; local and CI vulnerability checks use
+the same pinned scanner release. Candidate identity is generated from the
+built executable's health response, so its contract list cannot drift from the
+compiled implementation. The identity records source revision, binary digest,
+working-tree status, and all reported contract versions; the binary and
+identity manifest are checksummed. Candidate tests reject incomplete health
+output and a dirty CI checkout. It does not sign, deploy, promote, or roll back.
 The remainder of this section describes required target behavior, not
 configured deployment capability.
 

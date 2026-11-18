@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Create a local executable archive with an identity manifest."""
 
-from hashlib import sha256
-from pathlib import Path
 import gzip
+from hashlib import sha256
 import json
-import subprocess
+from pathlib import Path
 import tarfile
+
+from artifact_identity import create_identity, repository_state
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,28 +17,8 @@ BIN = ROOT / ("bin/mimir.exe" if (ROOT / "bin/mimir.exe").is_file() else "bin/mi
 
 def main() -> int:
     DIST.mkdir(exist_ok=True)
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, text=True, capture_output=True
-    ).stdout.strip()
-    status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all"],
-        cwd=ROOT, check=True, text=True, capture_output=True,
-    ).stdout
-    digest = sha256(BIN.read_bytes()).hexdigest()
-    manifest = {
-        "sourceRevision": revision,
-        "workingTreeDirty": bool(status),
-        "workingTreeStatusSha256": sha256(status.encode()).hexdigest(),
-        "candidateEligible": not bool(status),
-        "binarySha256": digest,
-        "contractVersions": [
-            "mimir.metadata/v1",
-            "mimir.metadata-validation/v1",
-            "mimir.schedule-request/v1",
-            "mimir.schedule-request-ack/v1",
-            "mimir.failure/v1",
-        ],
-    }
+    revision, status = repository_state(ROOT)
+    manifest = create_identity(BIN, revision, status)
     manifest_path = DIST / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     archive_path = DIST / "mimir-local.tar.gz"
@@ -56,6 +37,7 @@ def main() -> int:
                     info.mtime = 0
                     with path.open("rb") as source:
                         archive.addfile(info, source)
+
     print(f"created {archive_path.relative_to(ROOT)} sha256={sha256(archive_path.read_bytes()).hexdigest()}")
     return 0
 
