@@ -6,6 +6,7 @@ PYTHON ?= python3
 test:
 	$(PYTHON) scripts/check_tasks.py
 	$(PYTHON) scripts/test_required_check.py
+	$(PYTHON) scripts/test_setup_dev.py
 	$(GO) test ./...
 
 test-race:

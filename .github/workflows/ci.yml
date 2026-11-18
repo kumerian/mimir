@@ -31,6 +31,11 @@ jobs:
           python-version: .python-version
       - name: Verify required-check failure propagation
         run: python3 scripts/test_required_check.py
+      - name: Test local development installer
+        run: python3 scripts/test_setup_dev.py
+      - name: Test Windows setup bootstrap
+        if: runner.os == 'Windows'
+        run: pwsh -NoProfile -File scripts/test_setup_dev_windows.ps1
       - name: Check formatting
         run: python3 scripts/required_check.py formatting -- python3 scripts/check_format.py
       - name: Check module formatting

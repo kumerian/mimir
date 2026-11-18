@@ -25,8 +25,9 @@ behavior unless explicitly listed as implemented in
 
 ## Getting started
 
-The local developer prerequisites are Go 1.27.3, `make`, and Python 3.12. Run
-the hermetic checks with:
+The local developer prerequisites are Go 1.27.3, GNU Make, Git, and Python
+3.12. Follow the [local development setup guide](docs/operations/local-development.md)
+to install them and configure your shell. Then run the hermetic checks with:
 
 ```sh
 make test
