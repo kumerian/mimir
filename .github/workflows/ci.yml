@@ -28,7 +28,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
         with:
-          python-version: .python-version
+          python-version-file: .python-version
       - name: Verify required-check failure propagation
         run: python3 scripts/test_required_check.py
       - name: Test local development installer
@@ -133,4 +133,4 @@ jobs:
       - name: Verify modules and scan known vulnerabilities
         run: |
           python3 scripts/required_check.py module-integrity -- go mod verify
-          python3 scripts/required_check.py vulnerability-scan -- go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+          python3 scripts/required_check.py vulnerability-scan -- go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
