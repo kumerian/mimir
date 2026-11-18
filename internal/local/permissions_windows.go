@@ -108,16 +108,16 @@ func isPrivatePath(path string) bool {
 	}
 	foundUserAccess := false
 	for i := uint32(0); i < aclInfo.aceCount; i++ {
-		var ace uintptr
+		var ace unsafe.Pointer
 		result, _, _ = procGetACE.Call(dacl, uintptr(i), uintptr(unsafe.Pointer(&ace)))
-		if result == 0 || ace == 0 {
+		if result == 0 || ace == nil {
 			return false
 		}
-		aceType := *(*byte)(unsafe.Pointer(ace))
+		aceType := *(*byte)(ace)
 		if aceType != accessAllowedACEType && aceType != accessDeniedACEType {
 			return false
 		}
-		sid, err := (*syscall.SID)(unsafe.Pointer(ace + 8)).String()
+		sid, err := (*syscall.SID)(unsafe.Add(ace, 8)).String()
 		if err != nil || !allowed[sid] {
 			return false
 		}
