@@ -36,10 +36,10 @@ jobs:
       - name: Test Windows setup bootstrap
         if: runner.os == 'Windows'
         run: pwsh -NoProfile -File scripts/test_setup_dev_windows.ps1
-      - name: Validate candidate identity and tool pins
-        run: |
-          python3 scripts/required_check.py candidate-identity-tests -- python3 scripts/test_artifact_identity.py
-          python3 scripts/required_check.py tool-pin-consistency -- python3 scripts/test_tool_pins.py
+      - name: Validate candidate identity
+        run: python3 scripts/required_check.py candidate-identity-tests -- python3 scripts/test_artifact_identity.py
+      - name: Validate tool pins
+        run: python3 scripts/required_check.py tool-pin-consistency -- python3 scripts/test_tool_pins.py
       - name: Check formatting
         run: python3 scripts/required_check.py formatting -- python3 scripts/check_format.py
       - name: Check module formatting
