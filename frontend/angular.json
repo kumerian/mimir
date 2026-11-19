@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "newProjectRoot": "projects",
+  "projects": {
+    "mimir": {
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false
+            }
+          },
+          "defaultConfiguration": "production",
+          "options": {
+            "browser": "src/main.ts",
+            "index": "src/index.html",
+            "outputPath": "dist/mimir",
+            "polyfills": [
+              "zone.js"
+            ],
+            "styles": [
+              "src/styles.css"
+            ],
+            "tsConfig": "tsconfig.app.json"
+          }
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "mimir",
+      "projectType": "application"
+    }
+  },
+  "version": 1
+}

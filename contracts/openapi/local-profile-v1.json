@@ -1,0 +1,457 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mimir local reference profile API",
+    "version": "mimir.gui-api/v1",
+    "description": "Same-origin, loopback-only synchronous API for existing local reference profile use cases. This contract does not expose run history, record browsing, audit queries, proposal history, schedule dispatch, or production hosting. Error status mapping follows ADR-0005; the mimir.failure/v1 envelope is authoritative for retry and commit certainty."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8787/api/v1",
+      "description": "Default local-only listener; runtime configuration may select another loopback IP and port."
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getProfileHealth",
+        "summary": "Read compiled profile identity",
+        "description": "Reports binary and built-in local-reference capability identity only. It is not filesystem, source, destination, or environment readiness.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}],
+        "responses": {
+          "200": {"description": "Compiled profile identity", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ProfileHealth"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/metadata/validate": {
+      "post": {
+        "operationId": "validateMetadata",
+        "summary": "Validate an inline metadata v1 document",
+        "description": "Accepts at most 1 MiB of inline JSON. The existing validation use case persists a content-free report under the fixed state directory; invalid metadata is returned as a report with valid=false, not as an HTTP error.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "../metadata/v1.schema.json"}}}},
+        "responses": {
+          "200": {"description": "Validation report; never run-eligible", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ValidationReport"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/metadata/validation-reports/{inputDigest}": {
+      "get": {
+        "operationId": "getValidationReport",
+        "summary": "Look up a persisted report by exact input digest",
+        "parameters": [
+          {"$ref": "#/components/parameters/ContractVersion"},
+          {"$ref": "#/components/parameters/CorrelationId"},
+          {"name": "inputDigest", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}}
+        ],
+        "responses": {
+          "200": {"description": "Immutable validation report", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ValidationReport"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/metadata/revisions": {
+      "get": {
+        "operationId": "listMetadataRevisions",
+        "summary": "List metadata revision identities",
+        "description": "Returns revision, status, and digest only; it does not retrieve full revision contents or history.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}],
+        "responses": {
+          "200": {
+            "description": "Revision summaries",
+            "content": {
+              "application/json": {
+                "schema": {"type": "array", "items": {"$ref": "#/components/schemas/RevisionSummary"}}
+              }
+            }
+          },
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      },
+      "post": {
+        "operationId": "authorMetadata",
+        "summary": "Author an immutable draft from inline metadata",
+        "description": "Accepts at most 1 MiB of inline metadata JSON; no server path is accepted.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "../metadata/v1.schema.json"}}}},
+        "responses": {
+          "201": {"description": "Authored immutable revision summary", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RevisionSummary"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/metadata/activate": {
+      "post": {
+        "operationId": "activateMetadata",
+        "summary": "Explicitly activate an inline candidate or stored draft",
+        "description": "The envelope is limited to 1 MiB plus 4 KiB; inline metadata remains limited to 1 MiB. Supply exactly one of metadata or revision. expectedActive is required by the existing use case when replacing an active revision.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ActivateRequest"}}}},
+        "responses": {
+          "200": {"description": "Activation result", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ActivationResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/discovery": {
+      "post": {
+        "operationId": "discoverSchema",
+        "summary": "Discover the active local JSONL object",
+        "description": "Requires an explicit sourceRoot. Returns the immediate proposal and does not change active metadata. Request body maximum is 64 KiB.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DiscoveryRequest"}}}},
+        "responses": {
+          "200": {"description": "Immediate schema proposal", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DiscoveryResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/runs": {
+      "post": {
+        "operationId": "runBoundedSnapshot",
+        "summary": "Run one bounded local JSONL snapshot",
+        "description": "Requires an explicit sourceRoot. The existing profile limits the source to 16 MiB and 1,000 records. Response contains only run/revision identity, record count, and reconciliation status. Request body maximum is 64 KiB.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RunRequest"}}}},
+        "responses": {
+          "200": {"description": "Bounded run summary", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RunResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/schedules/evaluate": {
+      "post": {
+        "operationId": "evaluateSchedules",
+        "summary": "Evaluate local schedule slots",
+        "description": "Persists stable schedule requests only; it does not dispatch or start runs. Request body maximum is 64 KiB.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScheduleRequest"}}}},
+        "responses": {
+          "200": {"description": "Schedule decisions and requests", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScheduleResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/schedules/stop": {
+      "post": {
+        "operationId": "stopScheduleRequests",
+        "summary": "Acknowledge pending schedule requests as stopped",
+        "description": "Does not alter run state or resume stopped requests. reason is cancelled or shutdown; omitted reason defaults to shutdown. Request body maximum is 64 KiB.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/StopScheduleRequest"}}}},
+        "responses": {
+          "200": {"description": "Stop acknowledgement outcome", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/StopResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/replays": {
+      "post": {
+        "operationId": "prepareConstrainedReplay",
+        "summary": "Reconcile an original pinned idempotent batch",
+        "description": "Requires explicit sourceRoot, original runId, and reason (operator_request, recovery, or incident). This does not create a new output-producing replay. Request body maximum is 64 KiB.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReplayRequest"}}}},
+        "responses": {
+          "200": {"description": "Replay preparation and original batch reconciliation result", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReplayResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/cleaning/preview": {
+      "post": {
+        "operationId": "previewCleaning",
+        "summary": "Preview one explicit cleaning correction",
+        "description": "The envelope limit is 256 KiB plus 4 KiB; record is limited to 256 KiB. Only public or internal classification and trim, lowercase, uppercase, or replace_null are supported. The response contains record values and must be handled under its classification.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CleaningRequest"}}}},
+        "responses": {
+          "200": {"description": "Explicit preview; record-bearing response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CleaningResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    },
+    "/cleaning/apply": {
+      "post": {
+        "operationId": "applyCleaning",
+        "summary": "Apply one explicit cleaning correction",
+        "description": "The envelope limit is 256 KiB plus 4 KiB; record is limited to 256 KiB. Writes separate cleaned output and audit evidence; never replaces input. The response contains record values and must be handled under its classification.",
+        "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CleaningRequest"}}}},
+        "responses": {
+          "200": {"description": "Explicit application result; record-bearing response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CleaningResult"}}}},
+          "default": {"$ref": "#/components/responses/Failure"}
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ContractVersion": {
+        "name": "Mimir-Contract-Version",
+        "in": "header",
+        "required": true,
+        "schema": {"type": "string", "const": "mimir.gui-api/v1"}
+      },
+      "CorrelationId": {
+        "name": "X-Correlation-ID",
+        "in": "header",
+        "required": false,
+        "description": "1–128 ASCII letters, digits, dot, underscore, or hyphen. The server generates an identifier when omitted.",
+        "schema": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$", "maxLength": 128}
+      },
+      "SameOrigin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "description": "Required for mutating browser requests; must match the request origin and use a loopback host. Remote origins and CORS are unsupported.",
+        "schema": {"type": "string", "format": "uri"}
+      }
+    },
+    "responses": {
+      "Failure": {
+        "description": "Stable mimir.failure/v1 error. HTTP statuses: invalid_input 400, unsupported_capability/policy_rejected 422, access_denied 403, conflict 409, unavailable 503, ambiguous_commit/internal 500, cancelled 408, timeout 504. Status does not imply retry safety.",
+        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Failure"}}}
+      }
+    },
+    "schemas": {
+      "Failure": {
+        "type": "object",
+        "required": ["contractVersion", "category", "operation", "retryable", "commitCertainty", "safeDiagnostic"],
+        "properties": {
+          "contractVersion": {"type": "string", "const": "mimir.failure/v1"},
+          "category": {"type": "string", "enum": ["invalid_input", "unsupported_capability", "access_denied", "conflict", "policy_rejected", "unavailable", "ambiguous_commit", "cancelled", "timeout", "internal"]},
+          "operation": {"type": "string"},
+          "stage": {"type": "string"},
+          "retryable": {"type": "boolean"},
+          "commitCertainty": {"type": "string", "enum": ["not_committed", "committed", "unknown"]},
+          "reconciliation": {"type": "string"},
+          "causeReference": {"type": "string"},
+          "safeDiagnostic": {"type": "string"}
+        },
+        "additionalProperties": false
+      },
+      "ProfileHealth": {
+        "type": "object",
+        "required": ["status", "version", "commit", "contracts", "profile"],
+        "properties": {
+          "status": {"type": "string", "const": "ready"},
+          "version": {"type": "string"},
+          "commit": {"type": "string"},
+          "contracts": {"type": "array", "items": {"type": "string"}},
+          "profile": {"type": "string", "const": "local-reference-v1"}
+        },
+        "additionalProperties": false
+      },
+      "ValidationReport": {
+        "type": "object",
+        "required": ["contractVersion", "inputDigest", "valid", "runEligible", "securityImpact", "compatibilityDecision", "diagnostics"],
+        "properties": {
+          "contractVersion": {"type": "string", "const": "mimir.metadata-validation/v1"},
+          "inputDigest": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "valid": {"type": "boolean"},
+          "runEligible": {"type": "boolean", "const": false},
+          "securityImpact": {"type": "string", "const": "input_not_retained"},
+          "compatibilityDecision": {"type": "string", "enum": ["rejected", "unsupported_version", "accepted_v1"]},
+          "diagnostics": {"type": "array", "items": {"type": "object", "required": ["code", "path", "message"], "properties": {"code": {"type": "string"}, "path": {"type": "string"}, "message": {"type": "string"}}, "additionalProperties": false}}
+        },
+        "additionalProperties": false
+      },
+      "RevisionSummary": {
+        "type": "object",
+        "required": ["revision", "status", "digest"],
+        "properties": {"revision": {"type": "string"}, "status": {"type": "string"}, "digest": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
+        "additionalProperties": false
+      },
+      "ActivateRequest": {
+        "type": "object",
+        "properties": {
+          "metadata": {"$ref": "../metadata/v1.schema.json"},
+          "revision": {"type": "string", "maxLength": 128},
+          "expectedActive": {"type": "string", "maxLength": 128}
+        },
+        "oneOf": [{"required": ["metadata"]}, {"required": ["revision"]}],
+        "additionalProperties": false
+      },
+      "ActivationResult": {
+        "type": "object",
+        "required": ["revision", "status", "digest"],
+        "properties": {"revision": {"type": "string"}, "status": {"type": "string"}, "digest": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
+        "additionalProperties": false
+      },
+      "DiscoveryRequest": {
+        "type": "object",
+        "required": ["sourceRoot"],
+        "properties": {"sourceRoot": {"type": "string", "minLength": 1}, "disposition": {"type": "string", "enum": ["reject", "hold", "quarantine", "continue"]}},
+        "additionalProperties": false
+      },
+      "DiscoveryResult": {
+        "type": "object",
+        "required": ["proposalId", "proposal"],
+        "properties": {
+          "proposalId": {"type": "string"},
+          "proposal": {
+            "type": "object",
+            "required": ["activeRevision", "observation", "report", "proposedColumns", "executionReady"],
+            "properties": {
+              "activeRevision": {"type": "string"},
+              "observation": {"$ref": "#/components/schemas/DiscoveryObservation"},
+              "report": {"$ref": "#/components/schemas/DiscoveryReport"},
+              "proposedColumns": {"type": "array", "items": {"$ref": "#/components/schemas/DiscoveryColumn"}},
+              "executionReady": {"type": "boolean", "const": false}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "RunRequest": {
+        "type": "object",
+        "required": ["sourceRoot"],
+        "properties": {"sourceRoot": {"type": "string", "minLength": 1}},
+        "additionalProperties": false
+      },
+      "RunResult": {
+        "type": "object",
+        "required": ["runId", "metadataRevision", "recordCount", "alreadyCommitted"],
+        "properties": {"runId": {"type": "string"}, "metadataRevision": {"type": "string"}, "recordCount": {"type": "integer", "minimum": 0}, "alreadyCommitted": {"type": "boolean"}},
+        "additionalProperties": false
+      },
+      "ScheduleRequest": {
+        "type": "object",
+        "properties": {"at": {"type": "string", "format": "date-time"}},
+        "additionalProperties": false
+      },
+      "ScheduleResult": {
+        "type": "object",
+        "required": ["decisions", "requests"],
+        "properties": {
+          "decisions": {"type": "array", "items": {"$ref": "#/components/schemas/ScheduleDecision"}},
+          "requests": {"type": "array", "items": {"$ref": "#/components/schemas/ScheduleRunRequest"}}
+        },
+        "additionalProperties": false
+      },
+      "ScheduleDecision": {
+        "type": "object",
+        "required": ["sourceId", "objectId", "eligible", "reason"],
+        "properties": {
+          "sourceId": {"type": "string"},
+          "objectId": {"type": "string"},
+          "eligible": {"type": "boolean"},
+          "reason": {"type": "string"},
+          "request": {"$ref": "#/components/schemas/ScheduleRunRequest"}
+        },
+        "additionalProperties": false
+      },
+      "ScheduleRunRequest": {
+        "type": "object",
+        "required": ["contractVersion", "requestId", "metadataRevision", "sourceId", "objectId", "scheduledAt", "retryLimit", "concurrencyLimit"],
+        "properties": {
+          "contractVersion": {"type": "string", "const": "mimir.schedule-request/v1"},
+          "requestId": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "metadataRevision": {"type": "string"},
+          "sourceId": {"type": "string"},
+          "objectId": {"type": "string"},
+          "scheduledAt": {"type": "string", "format": "date-time"},
+          "retryLimit": {"type": "integer", "minimum": 0},
+          "concurrencyLimit": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      },
+      "StopScheduleRequest": {
+        "type": "object",
+        "properties": {"reason": {"type": "string", "enum": ["cancelled", "shutdown"]}},
+        "additionalProperties": false
+      },
+      "StopResult": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {"status": {"type": "string", "const": "pending_requests_stopped"}},
+        "additionalProperties": false
+      },
+      "ReplayRequest": {
+        "type": "object",
+        "required": ["sourceRoot", "runId", "reason"],
+        "properties": {"sourceRoot": {"type": "string", "minLength": 1}, "runId": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}, "reason": {"type": "string", "enum": ["operator_request", "recovery", "incident"]}},
+        "additionalProperties": false
+      },
+      "ReplayResult": {
+        "type": "object",
+        "required": ["replayPlanId", "originalRunId", "result"],
+        "properties": {"replayPlanId": {"type": "string"}, "originalRunId": {"type": "string"}, "result": {"$ref": "#/components/schemas/RunResult"}},
+        "additionalProperties": false
+      },
+      "DiscoveryColumn": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"type": "string", "enum": ["string", "number", "integer", "boolean"]},
+          "classification": {"type": "string", "enum": ["public", "internal"]}
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryObservation": {
+        "type": "object",
+        "required": ["contractVersion", "provider", "providerVersion", "scope", "sourceDigest", "observedAt", "columns"],
+        "properties": {
+          "contractVersion": {"type": "string", "const": "mimir.discovery/v1"},
+          "provider": {"type": "string"},
+          "providerVersion": {"type": "string"},
+          "scope": {"type": "string"},
+          "sourceDigest": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "observedAt": {"type": "string", "format": "date-time"},
+          "columns": {"type": "array", "items": {"$ref": "#/components/schemas/DiscoveryColumn"}}
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryChange": {
+        "type": "object",
+        "required": ["field", "kind"],
+        "properties": {
+          "field": {"type": "string"},
+          "kind": {"type": "string", "enum": ["added", "removed", "type_changed", "classification_changed"]},
+          "before": {"type": "string"},
+          "after": {"type": "string"}
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryReport": {
+        "type": "object",
+        "required": ["contractVersion", "compatible", "disposition", "changes"],
+        "properties": {
+          "contractVersion": {"type": "string", "const": "mimir.discovery/v1"},
+          "compatible": {"type": "boolean"},
+          "disposition": {"type": "string", "enum": ["reject", "hold", "quarantine", "continue"]},
+          "changes": {"type": "array", "items": {"$ref": "#/components/schemas/DiscoveryChange"}}
+        },
+        "additionalProperties": false
+      },
+      "CleaningRequest": {
+        "type": "object",
+        "required": ["record", "classification", "correction"],
+        "properties": {
+          "record": {"type": "object", "description": "One JSON object, at most 256 KiB. Record values are sensitive local data."},
+          "classification": {"type": "string", "enum": ["public", "internal"]},
+          "correction": {"type": "object", "required": ["id", "version", "operation", "field"], "properties": {"id": {"type": "string"}, "version": {"type": "string", "const": "v1"}, "operation": {"type": "string", "enum": ["trim", "lowercase", "uppercase", "replace_null"]}, "field": {"type": "string"}, "value": {}}, "additionalProperties": false}
+        },
+        "additionalProperties": false
+      },
+      "CleaningResult": {
+        "type": "object",
+        "required": ["record", "audit", "preview", "alreadyApplied", "classification"],
+        "properties": {
+          "record": {"type": "object", "description": "Record-bearing result; handle according to the request classification."},
+          "classification": {"type": "string", "enum": ["public", "internal"], "description": "Classification of the input record; apply the same handling to this returned record."},
+          "audit": {"type": "object", "required": ["correctionId", "correctionVersion", "actor", "inputReference", "outputDigest", "idempotencyKey", "occurredAt"], "properties": {"correctionId": {"type": "string"}, "correctionVersion": {"type": "string"}, "actor": {"type": "string"}, "inputReference": {"type": "string"}, "outputDigest": {"type": "string"}, "idempotencyKey": {"type": "string"}, "occurredAt": {"type": "string", "format": "date-time"}}, "additionalProperties": false},
+          "preview": {"type": "boolean"},
+          "alreadyApplied": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

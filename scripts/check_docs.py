@@ -14,7 +14,7 @@ REQUIRED_ADR_HEADINGS = ("## Status", "## Context", "## Decision", "## Alternati
 def main() -> int:
     errors = []
     for markdown in ROOT.rglob("*.md"):
-        if ".git" in markdown.parts:
+        if ".git" in markdown.parts or "node_modules" in markdown.parts:
             continue
         text = markdown.read_text(encoding="utf-8")
         for target in LINK.findall(text):

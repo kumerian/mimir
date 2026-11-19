@@ -45,6 +45,26 @@ func TestHealthReportsBuildAndContractIdentity(t *testing.T) {
 	}
 }
 
+func TestServeRequiresExplicitLocalGrantAndLoopbackConfiguration(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "missing grant", args: []string{"serve", "--state-dir", "/tmp/mimir-state"}},
+		{name: "missing state", args: []string{"serve", "--allow-local"}},
+		{name: "relative state", args: []string{"serve", "--allow-local", "--state-dir", "relative"}},
+		{name: "non-loopback bind", args: []string{"serve", "--allow-local", "--state-dir", "/tmp/mimir-state", "--listen", "0.0.0.0:8787"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := execute(test.args, &stdout, &stderr); code != 2 || stdout.Len() != 0 {
+				t.Fatalf("serve exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
 func TestValidateCommandPersistsAndQueriesNonEligibleReport(t *testing.T) {
 	root := t.TempDir()
 	stateDir := filepath.Join(root, "state")

@@ -14,7 +14,11 @@ The system remains independent of a particular database, cloud, messaging
 product, workflow engine, data format, or orchestration platform. Decisions in
 this document select implementation languages and development tools, plus the
 initial transport and test conventions, but do not select those infrastructure
-products.
+products for the platform-neutral core. The local container profile separately
+selects Compose, Nginx and MariaDB for metadata in
+[ADR-0006](../architecture/decisions/ADR-0006-local-compose-and-metadata-persistence.md);
+the local three-service profile is implemented but is not a production
+deployment.
 
 ## Technology Decision
 
@@ -22,6 +26,8 @@ Mimir will use:
 
 - **Go** as the implementation language for domain, application, runtime,
   reference adapters, command-line entrypoints, APIs, and workers;
+- **Angular** for the local browser presentation, served as static assets
+  through the Nginx frontend and same-origin Go API proxy;
 - Go domain types for in-process interaction, with **JSON** metadata and
   configuration contracts and **YAML** as a human authoring convenience;
 - **JSON Schema** for metadata and configuration validation;

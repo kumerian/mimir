@@ -294,3 +294,113 @@ production-grade secret stores, and production deployment remain unimplemented.
 Local owner tokens and attempt history fence stale writers only within the
 single-host profile; distributed worker fencing is not provided. Local rule
 execution and journals are not production approved.
+
+## Local HTTP API
+
+The Go backend exposes the same existing local use cases for a same-origin
+client. The local Compose profile includes a minimal Angular profile-identity
+and connectivity shell; full Angular operation journeys, run-history or record
+queries, schedule dispatch, and production hosting are not provided. Container
+setup and persistence are documented in the
+[three-container operations guide](../operations/local-reference.md#three-container-profile).
+The versioned contract is
+[`contracts/openapi/local-profile-v1.json`](../../contracts/openapi/local-profile-v1.json).
+Only Linux/amd64 has been runtime-verified for this local profile.
+
+Start the server in a terminal with an absolute, private state directory and
+the explicit local grant:
+
+```sh
+mkdir -m 700 /tmp/mimir-api-state
+./bin/mimir serve \
+  --state-dir /tmp/mimir-api-state \
+  --allow-local
+```
+
+It binds to `127.0.0.1:8787` by default. `--listen` may select another
+loopback IP literal and TCP port; non-loopback addresses, hostnames, and port
+zero are rejected. The state directory is fixed for the process lifetime.
+Operations that read a source require a `sourceRoot` in that operation's JSON
+request. Metadata and cleaning records are inline JSON; no metadata/record
+filesystem path is accepted by the HTTP API. The server does not browse
+directories. Stop it with Ctrl-C or SIGTERM; it stops accepting connections
+and allows up to 30 seconds for in-flight requests to finish.
+
+Every request supplies
+`Mimir-Contract-Version: mimir.gui-api/v1`. The server returns the supported
+contract version and an `X-Correlation-ID`; callers may supply a 1–128
+character ASCII identifier using letters, digits, dot, underscore, or hyphen.
+Every POST must have `Content-Type: application/json` and a matching
+loopback `Origin` header. The API has no CORS support and does not accept
+`OPTIONS` preflight. A browser page must be served from the same origin. The
+backend forwards request cancellation and caller deadlines to the existing
+use cases; it does not automatically retry operations.
+
+For example, health is profile identity only; it is not filesystem or source
+readiness:
+
+```sh
+curl -sS \
+  -H 'Mimir-Contract-Version: mimir.gui-api/v1' \
+  http://127.0.0.1:8787/api/v1/health
+```
+
+In the Compose profile, discovery, run, and replay source roots must be within
+the read-only `/data/sources` mount. The backend's `/readyz` probe checks the
+MariaDB connection separately from `/api/v1/health`; neither reports full
+filesystem, source, destination, or ingestion readiness.
+
+To validate a synthetic metadata document, include the same-origin headers on
+the POST:
+
+```sh
+curl -sS \
+  -H 'Mimir-Contract-Version: mimir.gui-api/v1' \
+  -H 'Origin: http://127.0.0.1:8787' \
+  -H 'Content-Type: application/json' \
+  --data-binary @contracts/examples/metadata-v1-draft.json \
+  http://127.0.0.1:8787/api/v1/metadata/validate
+```
+
+The available operations are deliberately limited:
+
+| Method and path | Existing behavior |
+| --- | --- |
+| `GET /api/v1/health` | Compiled local-profile identity only |
+| `POST /api/v1/metadata/validate` | Validate inline metadata; persist its safe report |
+| `GET /api/v1/metadata/validation-reports/{inputDigest}` | Retrieve a report by exact digest |
+| `POST /api/v1/metadata/revisions` | Author inline metadata as an immutable draft |
+| `GET /api/v1/metadata/revisions` | List revision/status/digest identities only |
+| `POST /api/v1/metadata/activate` | Activate exactly one inline candidate or stored draft; use `expectedActive` when replacing the active revision |
+| `POST /api/v1/discovery` | Discover the active local JSONL object; supply `sourceRoot`; returns an immediate proposal only |
+| `POST /api/v1/runs` | Run one bounded snapshot; supply `sourceRoot`; returns a summary, not records |
+| `POST /api/v1/schedules/evaluate` | Evaluate and persist schedule requests; does not dispatch them |
+| `POST /api/v1/schedules/stop` | Stop pending requests; does not cancel or alter runs |
+| `POST /api/v1/replays` | Reconcile an original pinned batch; supply `sourceRoot`, `runId`, and a fixed reason |
+| `POST /api/v1/cleaning/preview` | Preview an explicit correction to one inline record |
+| `POST /api/v1/cleaning/apply` | Apply an explicit correction to one inline record and persist separate output/audit |
+
+Metadata request bodies are limited to 1 MiB. An activation envelope is
+limited to 1 MiB plus 4 KiB, with inline metadata still limited to 1 MiB.
+Cleaning accepts one record no larger than 256 KiB in an envelope no larger
+than 256 KiB plus 4 KiB. Other request bodies are limited to 64 KiB. JSON
+requests reject duplicate or unknown envelope fields. The existing profile's
+16 MiB/1,000-record run bounds, capability checks, classification policy,
+locking, audit, and recovery semantics remain authoritative.
+
+Errors use the `mimir.failure/v1` JSON envelope. HTTP status mapping is
+`invalid_input` 400, `unsupported_capability`/`policy_rejected` 422,
+`access_denied` 403, `conflict` 409, `unavailable` 503,
+`ambiguous_commit`/`internal` 500, `cancelled` 408, and `timeout` 504.
+The envelope's `commitCertainty`, `retryable`, and `reconciliation` values
+remain authoritative; an ambiguous commit is not safe for blind retry. Raw
+adapter errors are not returned. Only cleaning preview/apply responses contain
+record values; handle those responses according to the request's `public` or
+`internal` classification.
+
+Unknown contract versions and unavailable history/query routes are rejected
+before a use case runs. The API is versioned independently from metadata and
+local journals; this backend change does not migrate persisted state. Rollback
+to the prior CLI/backend binary pair must preserve the same local state
+compatibility requirements. This local HTTP boundary is not safe for
+shared-host or multi-user exposure and is not production approved.

@@ -54,9 +54,6 @@ func CleanRecord(ctx context.Context, options CleaningOptions) (CleaningResult, 
 	if options.RecordPath == "" {
 		return CleaningResult{}, domain.NewFailure(domain.FailureInvalidInput, "cleaning.input", "record file is required")
 	}
-	if options.Classification != "public" && options.Classification != "internal" {
-		return CleaningResult{}, domain.NewFailure(domain.FailureAccessDenied, "cleaning.policy", "local cleaning permits only explicitly classified public or internal records")
-	}
 	info, err := os.Stat(options.RecordPath)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 256<<10 {
 		return CleaningResult{}, domain.NewFailure(domain.FailureInvalidInput, "cleaning.input", "record must be a regular JSON object file no larger than 256 KiB")
@@ -64,6 +61,34 @@ func CleanRecord(ctx context.Context, options CleaningOptions) (CleaningResult, 
 	raw, err := os.ReadFile(options.RecordPath)
 	if err != nil {
 		return CleaningResult{}, domain.NewFailure(domain.FailureUnavailable, "cleaning.input", "record file is unavailable")
+	}
+	return cleanRecordBytes(ctx, options, raw)
+}
+
+// CleanRecordBytes previews or applies one explicit correction from bounded
+// inline JSON without staging the record on disk.
+func CleanRecordBytes(ctx context.Context, options CleaningOptions, raw []byte) (CleaningResult, error) {
+	if err := ctx.Err(); err != nil {
+		return CleaningResult{}, domain.ContextFailure("cleaning.start", err)
+	}
+	if !options.AllowLocal || options.Actor != "local-user" {
+		if err := recordDenial(options.StateDir, options.Actor, "cleaning.apply", "access_denied"); err != nil {
+			return CleaningResult{}, domain.NewFailure(domain.FailureUnavailable, "audit.denial", "cleaning was denied and denial audit could not be persisted")
+		}
+		return CleaningResult{}, domain.NewFailure(domain.FailureAccessDenied, "cleaning.apply", "explicit local-user authorization is required")
+	}
+	if len(raw) == 0 || len(raw) > 256<<10 {
+		return CleaningResult{}, domain.NewFailure(domain.FailureInvalidInput, "cleaning.input", "record is missing or exceeds the 256 KiB size limit")
+	}
+	return cleanRecordBytes(ctx, options, raw)
+}
+
+func cleanRecordBytes(ctx context.Context, options CleaningOptions, raw []byte) (CleaningResult, error) {
+	if err := ctx.Err(); err != nil {
+		return CleaningResult{}, domain.ContextFailure("cleaning.start", err)
+	}
+	if options.Classification != "public" && options.Classification != "internal" {
+		return CleaningResult{}, domain.NewFailure(domain.FailureAccessDenied, "cleaning.policy", "local cleaning permits only explicitly classified public or internal records")
 	}
 	canonical, err := metadata.CanonicalizeRecord(raw)
 	if err != nil {

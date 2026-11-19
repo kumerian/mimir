@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	MetadataRepositoryVersion      = "mimir.metadata-repository/v1"
+	MetadataRepositoryVersion      = "mimir.metadata-repository/v2"
 	MetadataValidationStoreVersion = "mimir.metadata-validation-store/v1"
+	MetadataProposalStoreVersion   = "mimir.metadata-proposal-store/v1"
 	DiscoveryProviderVersion       = "mimir.discovery-provider/v1"
 	SourceAdapterVersion           = "mimir.source-adapter/v1"
 	DestinationAdapterVersion      = "mimir.destination-adapter/v1"
@@ -72,9 +73,15 @@ func ValidateBoundedRun(source SourceCapabilities, destination DestinationCapabi
 type MetadataRepository interface {
 	Capabilities() CapabilitySet
 	AppendDraft(context.Context, json.RawMessage, string) error
+	LoadDraft(context.Context, string) (json.RawMessage, error)
 	List(context.Context) ([]json.RawMessage, error)
 	LoadActive(context.Context) (json.RawMessage, error)
 	Activate(context.Context, json.RawMessage, string) (string, error)
+}
+
+type MetadataProposalStore interface {
+	Capabilities() CapabilitySet
+	Append(context.Context, string, json.RawMessage) error
 }
 
 type MetadataValidationStore interface {

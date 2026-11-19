@@ -66,6 +66,29 @@ func (r fileMetadataRepository) AppendDraft(ctx context.Context, raw json.RawMes
 	return nil
 }
 
+func (r fileMetadataRepository) LoadDraft(ctx context.Context, revision string) (json.RawMessage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, domain.ContextFailure("metadata.repository.draft", err)
+	}
+	if !localRevisionIDPattern.MatchString(revision) {
+		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.repository.draft", "revision identifier is invalid")
+	}
+	path := filepath.Join(r.stateDir, "metadata", "drafts", revision+".json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.repository.draft", "draft metadata is unavailable")
+	}
+	if !isPrivateFile(path) {
+		return nil, domain.NewFailure(domain.FailureAccessDenied, "metadata.repository.draft", "draft metadata permissions must be private to the local user")
+	}
+	parsed, err := metadata.Parse(bytes.NewReader(raw))
+	if err != nil || parsed.Document.Status != "draft" || parsed.Document.Revision != revision ||
+		!bytes.Equal(parsed.Canonical, raw) {
+		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.repository.draft", "stored draft failed validation")
+	}
+	return json.RawMessage(raw), nil
+}
+
 func (r fileMetadataRepository) List(ctx context.Context) ([]json.RawMessage, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, domain.ContextFailure("metadata.repository.list", err)
@@ -212,3 +235,40 @@ func (r fileMetadataRepository) Activate(ctx context.Context, raw json.RawMessag
 }
 
 var _ ports.MetadataRepository = fileMetadataRepository{}
+
+type fileMetadataProposalStore struct {
+	stateDir string
+}
+
+func (s fileMetadataProposalStore) Capabilities() ports.CapabilitySet {
+	return ports.CapabilitySet{
+		ContractVersion: ports.MetadataProposalStoreVersion,
+		Operations:      []string{"append_immutable_proposal"},
+		Unsupported:     []string{"proposal_queries", "proposal_mutation"},
+		Concurrency:     1,
+		MaximumBytes:    1 << 20,
+		Classifications: []string{"public", "internal"},
+	}
+}
+
+func (s fileMetadataProposalStore) Append(ctx context.Context, proposalID string, raw json.RawMessage) error {
+	if err := ctx.Err(); err != nil {
+		return domain.ContextFailure("metadata.proposal.append", err)
+	}
+	if proposalID == "" || len(raw) == 0 || len(raw) > 1<<20 || metadata.Digest(raw) != proposalID {
+		return domain.NewFailure(domain.FailureInvalidInput, "metadata.proposal.append", "proposal identity or content is invalid")
+	}
+	if err := ensurePrivateDirectory(s.stateDir); err != nil {
+		return domain.NewFailure(domain.FailureUnavailable, "metadata.proposal.append", "proposal directory is unavailable")
+	}
+	proposalDir := filepath.Join(s.stateDir, "metadata", "proposals")
+	if err := ensurePrivateDirectory(proposalDir); err != nil {
+		return domain.NewFailure(domain.FailureUnavailable, "metadata.proposal.append", "proposal directory is unavailable")
+	}
+	if err := writeImmutable(filepath.Join(proposalDir, proposalID+".json"), raw); err != nil {
+		return err
+	}
+	return nil
+}
+
+var _ ports.MetadataProposalStore = fileMetadataProposalStore{}

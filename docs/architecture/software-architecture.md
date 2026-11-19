@@ -18,11 +18,22 @@ store, append-only audit, and redacted correlated local telemetry. Deterministic
 fault injection covers the local durable boundaries. This is not a production
 profile: scheduling does not dispatch work, replay reconciles the original
 batch, metrics/traces exporters are absent, and hosted identity, distributed
-ownership, and deployment remain absent.
+ownership, and deployment remain absent. A loopback-only Go HTTP backend now
+exposes the approved local use cases. The three-container local profile and an
+Angular profile/connectivity shell are implemented; full operation screens
+remain in the BL-023 backlog.
 
 This document refines the system architecture into software boundaries,
-contracts, and execution mechanisms. It does not select a programming
-language, storage product, transport, or deployment platform.
+contracts, and execution mechanisms. The core does not select a storage or
+deployment product. For the local container profile,
+[ADR-0006](./decisions/ADR-0006-local-compose-and-metadata-persistence.md)
+selects Compose, Nginx and a MariaDB metadata adapter behind ports. The local
+GUI/API boundary uses an Angular browser SPA and same-origin Go API over HTTP/JSON at
+`/api/v1` with OpenAPI 3.1; see the [GUI architecture](./gui-architecture.md),
+the [local-profile OpenAPI contract](../../contracts/openapi/local-profile-v1.json),
+and [ADR-0005](./decisions/ADR-0005-local-gui-and-http-endpoint-boundary.md).
+The Go HTTP endpoints and container connectivity shell are implemented; the
+full Angular user journeys are not.
 
 ## Purpose
 
@@ -49,7 +60,7 @@ selected.
 ```mermaid
 flowchart TB
     Entry["Entrypoints and composition"]
-    Presentation["Commands, APIs, and workers"]
+    Presentation["CLI; Angular SPA and Go HTTP endpoints; workers"]
     Application["Application services and use cases"]
     Ports["Ports and capability contracts"]
     Domain["Domain model and policies"]
@@ -401,7 +412,8 @@ context creation, and call one application use case.
 | Entrypoint | Initial responsibility |
 | --- | --- |
 | CLI or local command | Authoring, discovery, validation, activation, and one-shot runs |
-| API | Metadata and operational commands and queries |
+| Angular GUI | Planned browser SPA with no domain policy; Nginx serves assets and proxies the API same-origin in the container profile. |
+| Go backend endpoints | Implemented synchronous HTTP/JSON `/api/v1` entrypoint described by OpenAPI 3.1; translates versioned requests/results and `mimir.failure/v1` failures to existing local use cases. Standalone mode is loopback-only, requires startup `--allow-local`, and exposes no history/query surface. Container-network mode is planned, not implemented. See the [GUI architecture](./gui-architecture.md), the [OpenAPI contract](../../contracts/openapi/local-profile-v1.json), and ADR-0005–0006. |
 | Scheduler worker | Turns trigger notifications into plan requests |
 | Run worker | Starts or resumes attempts from approved plans |
 | Adapter test host | Runs contract suites against registered adapters |
@@ -426,6 +438,14 @@ Secret values are resolved immediately before an adapter needs them, remain
 inside the infrastructure boundary, and are not persisted in domain objects or
 run plans. Audit and telemetry sinks receive redacted error and correlation
 data.
+
+For the standalone HTTP entrypoint, ADR-0005 requires loopback-only binding,
+explicit `--allow-local` startup, same-origin checks for mutating browser
+requests, bounded JSON bodies, and request-context cancellation. The Go server
+enforces these controls; loopback is not a substitute for hosted identity or
+multi-user authorization. ADR-0006 permits an explicit, unpublished
+container-network listener while retaining the same-origin loopback-host
+guard and the local grant; it is not implemented yet.
 
 ## Testing Architecture
 
@@ -496,8 +516,9 @@ testable.
 The following require focused decisions before the affected implementation:
 
 - contract version negotiation and compatibility rules;
-- exact port method signatures and error serialization;
-- authorization model and policy evaluation mechanism;
+- frontend toolchain versions and installation details (BL-023.4–10);
+- hosted authorization model and policy evaluation mechanism (the local GUI's
+  `local-user` / `allow-local` boundary is accepted in ADR-0005);
 - run-state concurrency primitive and checkpoint storage format;
 - durable audit journal or outbox mechanism;
 - worker deployment and request/response model;

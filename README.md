@@ -50,6 +50,41 @@ supported guarantees, and recovery. The [operations guide](docs/operations/local
 describes local state ownership and recovery. The file-based reference profile
 is not suitable for production.
 
+The Go backend also exposes the existing local-profile operations through a
+loopback-only HTTP/JSON API. Start it with an absolute private state directory
+and explicit local grant, for example
+`./bin/mimir serve --state-dir /absolute/path/to/mimir-state --allow-local`.
+The default listener is `127.0.0.1:8787`. The Angular screens and production
+journeys remain in progress; the container profile includes an Angular
+connectivity shell. See the API and local-server instructions in the
+[local reference guide](docs/user/local-reference-ingestion.md#local-http-api).
+
+## Local containers
+
+Docker Compose starts the Angular/Nginx frontend, Go backend, and MariaDB
+metadata store. The browser reaches the Go API through the same-origin Nginx
+proxy; only the frontend is published, on host loopback port 8080. Metadata
+revisions, validation reports, and discovery proposals use the MariaDB
+`metadata` schema. Execution state and data remain on a separate backend
+volume. This remains a single-user local profile, not a production or
+remote-access deployment.
+
+Create local-only credentials, then start the services:
+
+```sh
+printf 'MARIADB_ROOT_PASSWORD=%s\nMIMIR_DB_RUNTIME_PASSWORD=%s\nMIMIR_DB_MIGRATION_PASSWORD=%s\n' \
+  "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
+chmod 600 .env
+docker compose up --build -d
+```
+
+Use Docker Compose v2. Open `http://127.0.0.1:8080`; add permitted local
+JSONL sources under `data/sources`. The backend accepts source roots only
+within that read-only mount. To stop without deleting persistent data, run
+`docker compose down`; `docker compose down --volumes` permanently deletes
+both named volumes. See the [container operations guide](docs/operations/local-reference.md#three-container-profile)
+for readiness, backup, restore, and credential handling.
+
 ## Product intent
 
 ### Metadata Management

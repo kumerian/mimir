@@ -17,11 +17,13 @@ import (
 )
 
 type DiscoveryOptions struct {
-	SourceRoot  string
-	StateDir    string
-	Actor       string
-	AllowLocal  bool
-	Disposition string
+	SourceRoot         string
+	StateDir           string
+	Actor              string
+	AllowLocal         bool
+	Disposition        string
+	MetadataRepository ports.MetadataRepository
+	ProposalStore      ports.MetadataProposalStore
 }
 
 type DiscoveryResult struct {
@@ -52,7 +54,7 @@ func Discover(ctx context.Context, options DiscoveryOptions) (DiscoveryResult, e
 		return DiscoveryResult{}, err
 	}
 	defer releaseLock(lock)
-	parsed, _, err := loadActiveMetadata(options.StateDir)
+	parsed, _, err := loadActiveMetadataWithRepository(ctx, options.StateDir, options.MetadataRepository)
 	if err != nil {
 		return DiscoveryResult{}, err
 	}
@@ -104,11 +106,11 @@ func Discover(ctx context.Context, options DiscoveryOptions) (DiscoveryResult, e
 		return DiscoveryResult{}, domain.NewFailure(domain.FailureInternal, "discovery.persist", "discovery proposal cannot be encoded")
 	}
 	proposalID := metadata.Digest(proposalBytes)
-	proposalDir := filepath.Join(options.StateDir, "metadata", "proposals")
-	if err := ensurePrivateDirectory(proposalDir); err != nil {
-		return DiscoveryResult{}, domain.NewFailure(domain.FailureUnavailable, "discovery.persist", "proposal directory is unavailable")
+	proposalStore := options.ProposalStore
+	if proposalStore == nil {
+		proposalStore = fileMetadataProposalStore{stateDir: options.StateDir}
 	}
-	if err := writeImmutable(filepath.Join(proposalDir, proposalID+".json"), proposalBytes); err != nil {
+	if err := proposalStore.Append(ctx, proposalID, proposalBytes); err != nil {
 		return DiscoveryResult{}, err
 	}
 	event := auditEvent{

@@ -64,7 +64,7 @@ func replayWithFaultHook(ctx context.Context, options Options, originalRunID, re
 		original.SourceDigest == "" || original.Plan.MetadataRevision == "" || original.Plan.MetadataDigest == "" {
 		return ReplayResult{}, domain.NewFailure(domain.FailureInvalidInput, "replay.prepare", "original plan lacks valid pinned inputs")
 	}
-	parsed, _, err := loadActiveMetadata(options.StateDir)
+	parsed, _, err := loadActiveMetadataWithRepository(ctx, options.StateDir, options.MetadataRepository)
 	if err != nil {
 		return ReplayResult{}, err
 	}

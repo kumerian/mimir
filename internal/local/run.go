@@ -18,6 +18,7 @@ import (
 	"github.com/kumerian/mimir/internal/domain"
 	"github.com/kumerian/mimir/internal/metadata"
 	"github.com/kumerian/mimir/internal/planning"
+	"github.com/kumerian/mimir/internal/ports"
 	"github.com/kumerian/mimir/internal/quality"
 	"github.com/kumerian/mimir/internal/state"
 	"github.com/kumerian/mimir/internal/transform"
@@ -36,6 +37,7 @@ type Options struct {
 	ExpectedMetadataRevision string
 	ExpectedMetadataDigest   string
 	ExpectedSourceDigest     string
+	MetadataRepository       ports.MetadataRepository
 }
 
 type Result struct {
@@ -204,7 +206,7 @@ func runWithHooks(ctx context.Context, options Options, fault, auditFailure func
 		releaseLock(lock)
 	}()
 
-	parsed, _, err := loadActiveMetadata(options.StateDir)
+	parsed, _, err := loadActiveMetadataWithRepository(ctx, options.StateDir, options.MetadataRepository)
 	if err != nil {
 		return Result{}, err
 	}
