@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ func NewContainerLocalOperationsWithStores(
 	proposals ports.MetadataProposalStore,
 	sourceRoot string,
 ) (*LocalOperations, error) {
-	if !filepath.IsAbs(sourceRoot) || filepath.Clean(sourceRoot) != sourceRoot {
+	if !path.IsAbs(sourceRoot) || path.Clean(sourceRoot) != sourceRoot {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "http.start", "an absolute clean source directory is required")
 	}
 	return newLocalOperations(stateDir, allowLocal, profile, repository, reports, proposals, sourceRoot)
@@ -183,11 +184,11 @@ func (o *LocalOperations) validateSourceRoot(requested string) error {
 	if o.sourceRoot == "" {
 		return nil
 	}
-	if !filepath.IsAbs(requested) {
+	if !path.IsAbs(requested) {
 		return domain.NewFailure(domain.FailureInvalidInput, "source.root", "source root must be within the mounted source directory")
 	}
-	relative, err := filepath.Rel(o.sourceRoot, filepath.Clean(requested))
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+	cleaned := path.Clean(requested)
+	if cleaned != o.sourceRoot && o.sourceRoot != "/" && !strings.HasPrefix(cleaned, o.sourceRoot+"/") {
 		return domain.NewFailure(domain.FailureAccessDenied, "source.root", "source root must be within the mounted source directory")
 	}
 	return nil

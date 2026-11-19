@@ -50,7 +50,7 @@ dependencies of the domain or application modules.
 
 ### Accepted first-release baseline
 
-The initial implementation uses Go 1.27.3, a single Go module, and a pinned
+The initial implementation uses Go 1.27.4, a single Go module, and a pinned
 Draft 2020-12 JSON Schema validator as its only non-standard-library runtime
 dependency. The validator and metadata schema are embedded in the binary.
 Repository checks use Python 3.12's standard library and `make` tasks. Metadata

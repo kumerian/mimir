@@ -113,7 +113,7 @@ flowchart LR
 
 ## Consequences
 
-The implementation uses Go 1.27.3, Angular 22, MariaDB 11.4, Nginx, and
+The implementation uses Go 1.27.4, Angular 22, MariaDB 11.4, Nginx, and
 embedded ordered SQL migrations applied at backend startup with a separate
 schema-scoped migration credential. The runtime account has only metadata
 `SELECT`, `INSERT`, and `UPDATE` privileges. Backup and restore remain manual:

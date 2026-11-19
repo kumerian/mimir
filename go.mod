@@ -2,7 +2,7 @@ module github.com/kumerian/mimir
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3

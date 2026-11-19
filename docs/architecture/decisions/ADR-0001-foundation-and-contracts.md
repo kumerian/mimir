@@ -17,7 +17,7 @@ implementer for this delivery.
 ## Decision
 
 - Implement the first release as one Go module and one process, using Go
-  1.27.3. Support Linux, macOS, and Windows on amd64 and arm64 as build targets;
+  1.27.4. Support Linux, macOS, and Windows on amd64 and arm64 as build targets;
   CI must build all six combinations. Linux is the verified local target.
 - Use the Go standard library for the initial core except for the pinned
   `github.com/santhosh-tekuri/jsonschema/v6` Draft 2020-12 validator required

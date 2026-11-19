@@ -13,7 +13,7 @@ requests but does not start ingestion.
 
 ## Prerequisites and permissions
 
-- Go 1.27.3 to build from source; `make` and Python 3.12.3 for repository
+- Go 1.27.4 to build from source; `make` and Python 3.12.3 for repository
   tasks (see `.python-version`).
 - A local directory containing synthetic or otherwise locally authorized
   records. The reference profile permits only `public` and `internal`

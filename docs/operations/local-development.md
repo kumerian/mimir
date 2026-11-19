@@ -85,7 +85,7 @@ PATH in each new shell; replace the version below if `go.mod` changes. Set
 Homebrew's GNU Make and Python directories:
 
 ```sh
-export PATH="$HOME/.mimir-dev/go1.27.3/bin:$PATH"
+export PATH="$HOME/.mimir-dev/go1.27.4/bin:$PATH"
 export GOTOOLCHAIN=local
 # macOS only:
 export PATH="$(brew --prefix make)/libexec/gnubin:$(brew --prefix python@3.12)/bin:$PATH"
@@ -105,7 +105,7 @@ already-open shell retains its previous PATH. To ensure the pinned Go takes
 precedence in the current shell:
 
 ```powershell
-$env:Path = "$HOME\.mimir-dev\go1.27.3\bin;$env:Path"
+$env:Path = "$HOME\.mimir-dev\go1.27.4\bin;$env:Path"
 $env:GOTOOLCHAIN = 'local'
 go version
 py -3.12 --version
