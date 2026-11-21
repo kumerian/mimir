@@ -490,7 +490,8 @@ func requireJSON(r *http.Request) error {
 }
 
 func decodeStrict(raw []byte, target any) bool {
-	if err := metadata.ValidateJSONDocument(raw); err != nil {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || raw[0] != '{' || metadata.ValidateJSONDocument(raw) != nil {
 		return false
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
