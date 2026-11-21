@@ -85,7 +85,7 @@ jobs:
   candidate:
     name: candidate-build
     runs-on: ubuntu-24.04
-    needs: [validate, security, race]
+    needs: [validate, security, race, mariadb-integration]
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -141,6 +141,39 @@ jobs:
         run: |
           python3 scripts/required_check.py module-integrity -- go mod verify
           python3 scripts/required_check.py vulnerability-scan -- go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
+
+  mariadb-integration:
+    name: mariadb-repository-integration
+    runs-on: ubuntu-24.04
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: metadata
+          MARIADB_USER: mimir_test
+          MARIADB_PASSWORD: ci-only-password
+          MARIADB_ROOT_PASSWORD: ci-only-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test MariaDB metadata repository
+        env:
+          MIMIR_MARIADB_TEST_ADDRESS: 127.0.0.1:3306
+          MIMIR_MARIADB_TEST_USER: mimir_test
+          MIMIR_MARIADB_TEST_PASSWORD: ci-only-password
+        run: go test -tags=integration ./internal/adapters/mariadb
 
   container:
     name: local-container-profile
