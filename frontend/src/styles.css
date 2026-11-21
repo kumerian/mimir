@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #17231e;
+  background: #f5f7f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; min-width: 320px; }
+
+.shell { max-width: 1056px; margin: 0 auto; padding: 0 32px; }
+
+.topbar {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e3e9e3;
+}
+
+.brand { display: flex; gap: 10px; align-items: center; color: inherit; text-decoration: none; font-weight: 700; font-size: 19px; }
+.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: white; background: #1d5b44; font-size: 17px; }
+.local-badge { display: inline-flex; gap: 8px; align-items: center; padding: 7px 11px; border: 1px solid #dfe6df; border-radius: 999px; color: #58675e; background: #fff; font-size: 12px; }
+.local-badge span, .dot { width: 7px; height: 7px; border-radius: 50%; background: #45a875; }
+
+.intro { padding: 72px 0 36px; }
+.eyebrow { margin: 0 0 13px; color: #38745a; font: 500 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+h1 { margin: 0; font-size: clamp(36px, 5vw, 52px); letter-spacing: -.045em; line-height: 1.08; }
+.lede { margin: 16px 0 0; color: #66746b; font-size: 16px; }
+
+.status-card { display: flex; gap: 20px; padding: 27px 30px; border: 1px solid #e1e8e1; border-radius: 14px; background: #fff; box-shadow: 0 5px 20px #1a33200a; }
+.status-icon { flex: 0 0 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #8e6d2d; background: #fbf4e3; font-weight: 700; }
+.status-icon.online { color: #1c6b49; background: #e8f4ec; }
+.status-copy { width: 100%; }
+h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+.connection-state { display: flex; gap: 8px; align-items: center; margin: 8px 0 20px; color: #397454; font-size: 13px; }
+dl { display: flex; flex-wrap: wrap; gap: 12px 48px; margin: 0; }
+dl div { min-width: 125px; }
+dt { margin-bottom: 5px; color: #5f6b63; font-size: 11px; }
+dd { margin: 0; font: 500 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.health-note { margin: 16px 0 0; color: #5f6b63; font-size: 11px; }
+.muted { color: #5f6b63; font-size: 13px; line-height: 1.6; }
+.connection-error { color: #9c3d37; font-size: 13px; }
+button { padding: 8px 12px; border: 1px solid #cbd9ce; border-radius: 7px; color: #22553e; background: #fff; cursor: pointer; font: inherit; font-size: 12px; }
+
+.capabilities { display: grid; grid-template-columns: 1fr 1.2fr; gap: 50px; padding: 54px 0 60px; }
+.capabilities h2 { font-size: 19px; }
+.capabilities .muted { max-width: 350px; }
+ul { display: grid; gap: 10px; align-content: start; margin: 0; padding: 0; list-style: none; }
+li { display: flex; align-items: center; gap: 16px; min-height: 48px; padding: 0 15px; border: 1px solid #e3e9e3; border-radius: 9px; background: #fff; font-size: 13px; }
+li span { color: #4d775f; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+footer { display: flex; justify-content: space-between; gap: 16px; padding: 20px 0 28px; border-top: 1px solid #e3e9e3; color: #5f6b63; font-size: 11px; }
+
+@media (max-width: 650px) {
+  .shell { padding: 0 20px; }
+  .intro { padding-top: 52px; }
+  .status-card { padding: 22px 18px; }
+  .capabilities { grid-template-columns: 1fr; gap: 22px; padding: 42px 0; }
+  footer { flex-direction: column; }
+}

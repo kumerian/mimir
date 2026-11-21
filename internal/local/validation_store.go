@@ -99,6 +99,10 @@ func validDigest(value string) bool {
 }
 
 func ValidateMetadata(ctx context.Context, raw []byte, stateDir string) (metadata.ValidationReport, error) {
+	return ValidateMetadataWithStore(ctx, raw, stateDir, nil)
+}
+
+func ValidateMetadataWithStore(ctx context.Context, raw []byte, stateDir string, store ports.MetadataValidationStore) (metadata.ValidationReport, error) {
 	if stateDir == "" {
 		return metadata.ValidationReport{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.validation", "validation report state directory is required")
 	}
@@ -106,14 +110,24 @@ func ValidateMetadata(ctx context.Context, raw []byte, stateDir string) (metadat
 		return metadata.ValidationReport{}, domain.ContextFailure("metadata.validation", err)
 	}
 	report := metadata.Validate(raw)
-	if err := (fileMetadataValidationStore{stateDir: stateDir}).Append(ctx, report); err != nil {
+	if store == nil {
+		store = fileMetadataValidationStore{stateDir: stateDir}
+	}
+	if err := store.Append(ctx, report); err != nil {
 		return metadata.ValidationReport{}, err
 	}
 	return report, nil
 }
 
 func LoadMetadataValidationReport(ctx context.Context, stateDir, inputDigest string) (metadata.ValidationReport, error) {
-	return fileMetadataValidationStore{stateDir: stateDir}.Load(ctx, inputDigest)
+	return LoadMetadataValidationReportWithStore(ctx, stateDir, inputDigest, nil)
+}
+
+func LoadMetadataValidationReportWithStore(ctx context.Context, stateDir, inputDigest string, store ports.MetadataValidationStore) (metadata.ValidationReport, error) {
+	if store == nil {
+		store = fileMetadataValidationStore{stateDir: stateDir}
+	}
+	return store.Load(ctx, inputDigest)
 }
 
 var _ ports.MetadataValidationStore = fileMetadataValidationStore{}

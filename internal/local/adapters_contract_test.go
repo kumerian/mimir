@@ -97,6 +97,33 @@ func TestReferenceAdaptersClassifyCancellationDeniedScopeAndUnavailableSource(t 
 	}
 }
 
+func TestSourceAdapterRejectsRootSymlinkOutsideAllowedDirectory(t *testing.T) {
+	root := t.TempDir()
+	allowedRoot := filepath.Join(root, "sources")
+	outsideRoot := filepath.Join(root, "outside")
+	if err := os.Mkdir(allowedRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(outsideRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outsideRoot, "records.jsonl"), []byte("{\"id\":1}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	requestedRoot := filepath.Join(allowedRoot, "linked")
+	if err := os.Symlink(outsideRoot, requestedRoot); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+
+	_, _, err := (fileSourceAdapter{root: requestedRoot, allowedRoot: allowedRoot}).ReadBatch(
+		context.Background(), "records.jsonl",
+	)
+	failure, ok := err.(domain.Failure)
+	if !ok || failure.Category != domain.FailureAccessDenied {
+		t.Fatalf("source root symlink failure=%#v, want access denied", err)
+	}
+}
+
 func TestDestinationAdapterMapsTechnologyCauseToStableFailureReference(t *testing.T) {
 	destination := fileDestinationAdapter{path: filepath.Join(t.TempDir(), "missing-parent", "destination.jsonl")}
 	payload, err := json.Marshal(committedBatch{

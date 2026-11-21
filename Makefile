@@ -74,6 +74,7 @@ generate-metadata-schema:
 docs:
 	$(PYTHON) scripts/check_docs.py
 	$(PYTHON) scripts/check_contracts.py
+	$(PYTHON) scripts/check_openapi.py
 	$(GO) run ./cmd/mimir validate --metadata contracts/examples/metadata-v1-draft.json
 	$(PYTHON) scripts/check_tasks.py
 

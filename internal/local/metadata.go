@@ -15,6 +15,7 @@ import (
 
 	"github.com/kumerian/mimir/internal/domain"
 	"github.com/kumerian/mimir/internal/metadata"
+	"github.com/kumerian/mimir/internal/ports"
 )
 
 var localRevisionIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -63,7 +64,35 @@ func Author(ctx context.Context, candidatePath, stateDir, actor string, allowLoc
 	if readErr != nil || closeErr != nil {
 		return RevisionSummary{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.load", "candidate metadata could not be read")
 	}
-	report, err := ValidateMetadata(ctx, raw, stateDir)
+	return AuthorBytes(ctx, raw, stateDir, actor, allowLocal)
+}
+
+// AuthorBytes validates and stores an immutable draft from bounded inline JSON.
+func AuthorBytes(ctx context.Context, raw []byte, stateDir, actor string, allowLocal bool) (RevisionSummary, error) {
+	return AuthorBytesWithStores(ctx, raw, stateDir, actor, allowLocal, nil, nil)
+}
+
+func AuthorBytesWithStores(
+	ctx context.Context,
+	raw []byte,
+	stateDir, actor string,
+	allowLocal bool,
+	repository ports.MetadataRepository,
+	validationStore ports.MetadataValidationStore,
+) (RevisionSummary, error) {
+	if err := ctx.Err(); err != nil {
+		return RevisionSummary{}, domain.ContextFailure("metadata.author", err)
+	}
+	if !allowLocal || actor != "local-user" {
+		if err := recordDenial(stateDir, actor, "metadata.author", "access_denied"); err != nil {
+			return RevisionSummary{}, domain.NewFailure(domain.FailureUnavailable, "audit.denial", "authoring was denied and denial audit could not be persisted")
+		}
+		return RevisionSummary{}, domain.NewFailure(domain.FailureAccessDenied, "metadata.author", "explicit local-user authorization is required")
+	}
+	if stateDir == "" || len(raw) > 1<<20 {
+		return RevisionSummary{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.author", "candidate metadata is missing or exceeds the size limit")
+	}
+	report, err := ValidateMetadataWithStore(ctx, raw, stateDir, validationStore)
 	if err != nil {
 		return RevisionSummary{}, err
 	}
@@ -80,14 +109,49 @@ func Author(ctx context.Context, candidatePath, stateDir, actor string, allowLoc
 	if parsed.Document.Status != "draft" {
 		return RevisionSummary{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.author", "only valid draft metadata can be authored")
 	}
-	if err := (fileMetadataRepository{stateDir: stateDir}).AppendDraft(ctx, parsed.Canonical, actor); err != nil {
+	needsAudit := repository != nil
+	if repository == nil {
+		repository = fileMetadataRepository{stateDir: stateDir}
+	} else {
+		if err := ensurePrivateDirectory(stateDir); err != nil {
+			return RevisionSummary{}, domain.NewFailure(domain.FailureUnavailable, "metadata.repository.append", "metadata repository directory is unavailable")
+		}
+		lock, err := acquireLock(stateDir)
+		if err != nil {
+			return RevisionSummary{}, err
+		}
+		defer releaseLock(lock)
+	}
+	if err := repository.AppendDraft(ctx, parsed.Canonical, actor); err != nil {
 		return RevisionSummary{}, err
+	}
+	if needsAudit {
+		event := auditEvent{
+			EventID:   digest([]byte("metadata.authored\x00" + parsed.Document.Revision + "\x00" + digest(parsed.Canonical))),
+			Operation: "metadata.authored", Actor: actor, MetadataRevision: parsed.Document.Revision,
+			OccurredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		}
+		if err := ensureAudit(filepath.Join(stateDir, "audit", "events.jsonl"), event); err != nil {
+			return RevisionSummary{}, domain.NewFailure(domain.FailureUnavailable, "audit.append", "draft is stored but its audit event is pending; retry authoring")
+		}
 	}
 	return RevisionSummary{Revision: parsed.Document.Revision, Status: parsed.Document.Status, Digest: digest(parsed.Canonical)}, nil
 }
 
 // ListMetadata returns immutable draft and activated revision identities.
 func ListMetadata(stateDir, actor string, allowLocal bool) ([]RevisionSummary, error) {
+	return ListMetadataWithRepository(context.Background(), stateDir, actor, allowLocal, nil)
+}
+
+func ListMetadataWithRepository(
+	ctx context.Context,
+	stateDir, actor string,
+	allowLocal bool,
+	repository ports.MetadataRepository,
+) ([]RevisionSummary, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, domain.ContextFailure("metadata.list", err)
+	}
 	if !allowLocal || actor != "local-user" {
 		if err := recordDenial(stateDir, actor, "metadata.list", "access_denied"); err != nil {
 			return nil, domain.NewFailure(domain.FailureUnavailable, "audit.denial", "metadata listing was denied and denial audit could not be persisted")
@@ -97,7 +161,10 @@ func ListMetadata(stateDir, actor string, allowLocal bool) ([]RevisionSummary, e
 	if !isPrivateDirectory(stateDir) {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "metadata.list", "private local metadata directory is unavailable")
 	}
-	revisions, err := (fileMetadataRepository{stateDir: stateDir}).List(context.Background())
+	if repository == nil {
+		repository = fileMetadataRepository{stateDir: stateDir}
+	}
+	revisions, err := repository.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +189,34 @@ func ListMetadata(stateDir, actor string, allowLocal bool) ([]RevisionSummary, e
 
 // ActivateDraft activates a previously authored immutable draft by revision ID.
 func ActivateDraft(ctx context.Context, revision, stateDir, actor string, allowLocal bool, expectedActive string) (ActivationResult, error) {
+	return ActivateDraftWithRepository(ctx, revision, stateDir, actor, allowLocal, expectedActive, nil)
+}
+
+func ActivateDraftWithRepository(
+	ctx context.Context,
+	revision, stateDir, actor string,
+	allowLocal bool,
+	expectedActive string,
+	repository ports.MetadataRepository,
+) (ActivationResult, error) {
 	if !localRevisionIDPattern.MatchString(revision) {
 		return ActivationResult{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.activate", "revision identifier is invalid")
+	}
+	if repository != nil {
+		if err := ctx.Err(); err != nil {
+			return ActivationResult{}, domain.ContextFailure("metadata.activate", err)
+		}
+		if !allowLocal || actor != "local-user" {
+			if err := recordDenial(stateDir, actor, "metadata.activate", "access_denied"); err != nil {
+				return ActivationResult{}, domain.NewFailure(domain.FailureUnavailable, "audit.denial", "activation was denied and denial audit could not be persisted")
+			}
+			return ActivationResult{}, domain.NewFailure(domain.FailureAccessDenied, "metadata.activate", "explicit local-user authorization is required")
+		}
+		raw, err := repository.LoadDraft(ctx, revision)
+		if err != nil {
+			return ActivationResult{}, err
+		}
+		return ActivateBytesWithRepository(ctx, raw, stateDir, actor, allowLocal, repository, expectedActive)
 	}
 	path := filepath.Join(stateDir, "metadata", "drafts", revision+".json")
 	return Activate(ctx, path, stateDir, actor, allowLocal, expectedActive)
@@ -156,6 +249,48 @@ func Activate(ctx context.Context, candidatePath, stateDir, actor string, allowL
 	if closeErr != nil {
 		return ActivationResult{}, domain.NewFailure(domain.FailureUnavailable, "metadata.load", "candidate metadata could not be closed")
 	}
+	return activateParsed(ctx, parsed, stateDir, actor, nil, expectedActive...)
+}
+
+// ActivateBytes validates and activates a candidate from bounded inline JSON.
+func ActivateBytes(ctx context.Context, raw []byte, stateDir, actor string, allowLocal bool, expectedActive ...string) (ActivationResult, error) {
+	return ActivateBytesWithRepository(ctx, raw, stateDir, actor, allowLocal, nil, expectedActive...)
+}
+
+func ActivateBytesWithRepository(
+	ctx context.Context,
+	raw []byte,
+	stateDir, actor string,
+	allowLocal bool,
+	repository ports.MetadataRepository,
+	expectedActive ...string,
+) (ActivationResult, error) {
+	if err := ctx.Err(); err != nil {
+		return ActivationResult{}, domain.ContextFailure("metadata.activate", err)
+	}
+	if !allowLocal || actor != "local-user" {
+		if err := recordDenial(stateDir, actor, "metadata.activate", "access_denied"); err != nil {
+			return ActivationResult{}, domain.NewFailure(domain.FailureUnavailable, "audit.denial", "activation was denied and denial audit could not be persisted")
+		}
+		return ActivationResult{}, domain.NewFailure(domain.FailureAccessDenied, "metadata.activate", "explicit local-user authorization is required")
+	}
+	if stateDir == "" || len(raw) == 0 || len(raw) > 1<<20 {
+		return ActivationResult{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.activate", "candidate metadata is missing or exceeds the size limit")
+	}
+	parsed, err := metadata.ParseBytes(raw)
+	if err != nil {
+		return ActivationResult{}, err
+	}
+	return activateParsed(ctx, parsed, stateDir, actor, repository, expectedActive...)
+}
+
+func activateParsed(
+	ctx context.Context,
+	parsed metadata.Parsed,
+	stateDir, actor string,
+	repository ports.MetadataRepository,
+	expectedActive ...string,
+) (ActivationResult, error) {
 	if parsed.Document.Status != "draft" {
 		return ActivationResult{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.activate", "only draft metadata can be activated")
 	}
@@ -181,7 +316,19 @@ func Activate(ctx context.Context, candidatePath, stateDir, actor string, allowL
 	if len(expectedActive) == 1 {
 		expected = expectedActive[0]
 	}
-	previousRevision, err := (fileMetadataRepository{stateDir: stateDir}).Activate(ctx, activeBytes, expected)
+	if repository != nil {
+		if err := ensurePrivateDirectory(stateDir); err != nil {
+			return ActivationResult{}, domain.NewFailure(domain.FailureUnavailable, "metadata.repository.activate", "metadata repository directory is unavailable")
+		}
+		lock, err := acquireLock(stateDir)
+		if err != nil {
+			return ActivationResult{}, err
+		}
+		defer releaseLock(lock)
+	} else {
+		repository = fileMetadataRepository{stateDir: stateDir}
+	}
+	previousRevision, err := repository.Activate(ctx, activeBytes, expected)
 	if err != nil {
 		return ActivationResult{}, err
 	}
@@ -214,6 +361,47 @@ func loadActiveMetadata(stateDir string) (metadata.Parsed, activationPointer, er
 	parsed, err := metadata.Parse(bytes.NewReader(raw))
 	if err != nil || parsed.Document.Status != "active" || parsed.Document.Revision != pointer.Revision {
 		return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "active metadata revision failed validation")
+	}
+	auditPath := filepath.Join(stateDir, "audit", "events.jsonl")
+	if _, err := os.Stat(auditPath); err != nil {
+		return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureUnavailable, "metadata.active", "activation audit evidence is unavailable")
+	}
+	audits, err := readAndRepairTail[auditEvent](auditPath)
+	if err != nil {
+		return metadata.Parsed{}, activationPointer{}, err
+	}
+	expectedID := digest([]byte("metadata.activate\x00" + pointer.Revision + "\x00" + pointer.MetadataDigest))
+	for _, event := range audits {
+		if event.EventID == expectedID && event.Operation == "metadata.activated" {
+			return parsed, pointer, nil
+		}
+	}
+	return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureUnavailable, "metadata.active", "activation audit is pending; retry activation before running")
+}
+
+func loadActiveMetadataWithRepository(
+	ctx context.Context,
+	stateDir string,
+	repository ports.MetadataRepository,
+) (metadata.Parsed, activationPointer, error) {
+	if repository == nil {
+		return loadActiveMetadata(stateDir)
+	}
+	if err := ctx.Err(); err != nil {
+		return metadata.Parsed{}, activationPointer{}, domain.ContextFailure("metadata.active", err)
+	}
+	raw, err := repository.LoadActive(ctx)
+	if err != nil {
+		return metadata.Parsed{}, activationPointer{}, err
+	}
+	parsed, err := metadata.Parse(bytes.NewReader(raw))
+	if err != nil || parsed.Document.Status != "active" {
+		return metadata.Parsed{}, activationPointer{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.active", "active metadata revision failed validation")
+	}
+	pointer := activationPointer{
+		ContractVersion: ActivationContractVersion,
+		Revision:        parsed.Document.Revision,
+		MetadataDigest:  digest(raw),
 	}
 	auditPath := filepath.Join(stateDir, "audit", "events.jsonl")
 	if _, err := os.Stat(auditPath); err != nil {

@@ -1,0 +1,22 @@
+{
+  "name": "mimir-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "ng build --configuration production"
+  },
+  "dependencies": {
+    "@angular/common": "22.3.0",
+    "@angular/compiler": "22.3.0",
+    "@angular/core": "22.3.0",
+    "@angular/platform-browser": "22.3.0",
+    "rxjs": "7.8.2",
+    "zone.js": "0.16.0"
+  },
+  "devDependencies": {
+    "@angular/build": "22.2.7",
+    "@angular/cli": "22.2.7",
+    "@angular/compiler-cli": "22.3.0",
+    "typescript": "6.0.3"
+  }
+}

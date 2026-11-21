@@ -19,7 +19,7 @@ in full.
 
 ## First vertical slice refinements
 
-The confirmed BL-001–BL-022 scope is refined in one document per parent:
+The confirmed BL-001–BL-023 scope is refined in one document per parent:
 
 | Parent | Refinement |
 | --- | --- |
@@ -45,6 +45,7 @@ The confirmed BL-001–BL-022 scope is refined in one document per parent:
 | BL-020 | [Artifact promotion](./BL-020-artifact-promotion.md) |
 | BL-021 | [Documentation](./BL-021-documentation.md) |
 | BL-022 | [External adapters](./BL-022-external-adapters.md) |
+| BL-023 | [Angular GUI for the local reference profile](./BL-023-gui-local-profile.md) |
 
 ## Repository baseline and comparison
 
@@ -101,10 +102,11 @@ acceptance evidence are not available in this task.
 | BL-016 | In Progress | `v1` quality rules, warning/reject/quarantine integration, durable quarantine and recovery are implemented; automatic retention and hosted policy are not provided. |
 | BL-017 | In Progress | Explicit `v1` cleaning has preview, local access/classification checks, separate idempotent persistence, redacted audit and interruption recovery; no hosted authorization or deployed acceptance. |
 | BL-018 | In Progress | CLI replay validates pinned metadata/source/rules/adapter inputs and reconciles the original batch; local replay and run fault matrices now verify restart idempotency. New output-producing replay and external-adapter acceptance remain out of scope. |
-| BL-019 | In Progress | Health, validate, author/list, activate, discovery, schedule, run, clean and replay CLI commands exist; HTTP API, worker, hosted identity and contract-test host remain. |
+| BL-019 | In Progress | Health, validate, author/list, activate, discovery, schedule, run, clean and replay CLI commands and the local HTTP API exist; worker, hosted identity and contract-test host remain. |
 | BL-020 | Blocked | Candidate identity/checksum now derives its contract list from executable health and is tested locally. Test/acceptance/production deployment target, human approval configuration, signing, smoke and rollback drill are absent. Next action: operators provision and protect the required environments and signing identity. |
 | BL-021 | In Progress | README and local guides cover implemented behavior; Linux/amd64 clean install and offline whole-directory backup/restore drill pass. Other-target installs, migration and candidate promotion/rollback remain unverified or externally blocked. |
-| BL-022 | Blocked | ADR-0004 explicitly defers external adapters because no concrete integration need or target is evidenced. Next action: a concrete integration requirement with an approved adapter ADR and isolated test resources. |
+| BL-022 | Blocked | Other external adapters remain deferred by ADR-0004. The concrete local MariaDB metadata adapter is separately accepted in ADR-0006 and tracked under BL-023.8. |
+| BL-023 | In Progress | ADR-0005/0006 accept the local GUI/API and three-container boundaries. Go HTTP, OpenAPI, an Angular connectivity shell, MariaDB metadata persistence, and Compose deployment are implemented; full GUI journeys and backup/restore verification remain. BL-023.8–.10 are In Progress. |
 
 The proposed increments follow the accepted system delivery order: contracts,
 metadata, planning, runtime, safe reference data movement, transformation,
@@ -121,6 +123,7 @@ independent entrypoints.
 | Test/acceptance/production targets, artifact signing, protected approvals, and rollback drill | Repository administrators/environment operators | BL-020 | Provision environments and signing identity |
 | Concrete external adapter use case and isolated test resources | Product/architecture/operations owner | BL-022 | Submit evidence-backed integration request |
 | Production retention, data access, and smoke policies | Governance/operations owner | BL-005, BL-020–BL-022 | Establish with the production service owner |
+| Frontend toolchain versions, source mounting, schema migration mechanism and installation/update/rollback procedures | BL-023 owner and maintainers | BL-023.4–BL-023.10 | Resolve delivery details under ADR-0005/0006; OpenAPI operations and limits are already specified |
 
 ## Delivery map
 
@@ -1289,6 +1292,97 @@ Open decisions or assumptions:
   independently deployed capability requires its own evidence-backed ADR.
 - **Assumption:** P2 does not block the reference implementation's P0/P1 path.
 
+### BL-023: Deliver an Angular GUI for the implemented local reference profile
+
+Type: Feature
+Status: In Progress
+Priority: P1
+
+Problem/outcome:
+Local operators can use the implemented reference profile through the Go CLI
+or local HTTP API. Provide the Angular presentation and local three-container
+profile for existing operations, without moving domain policy into the GUI or
+implying queries, deployment, or capabilities that are not implemented.
+
+Scope:
+- implement within the accepted local GUI/API and container boundaries in
+  ADR-0005 and ADR-0006; finish delivery details in dependent work;
+- define a versioned Go HTTP request/result/error contract and expose only
+  operations already implemented by the local profile;
+- provide Angular user journeys for profile status, metadata validation and
+  report lookup, draft authoring/listing/activation, discovery proposals,
+  bounded runs, schedule evaluation/request stopping, constrained replay, and
+  explicit cleaning preview/application;
+- preserve local-use authorization, capability limits, classification,
+  redaction, audit, locking, commit/recovery, and cleaning semantics at the Go
+  use-case boundary;
+- integrate frontend/backend checks, local installation and functional/
+  operations documentation, and candidate artifact identity with the
+  repository delivery workflow;
+- add the MariaDB metadata adapter and discovery proposal port, explicit
+  container-network listener, and three-service Compose profile.
+
+Out of scope:
+- hosted identity or multi-user authorization, a production service or
+  production-ready local profile, new application queries/history, new
+  execution behavior, other external adapters, automatic schedule
+  dispatch, record browsing, and output/quarantine history;
+- hosted or independently deployed backend/frontend products.
+
+Dependencies:
+- BL-002.
+- BL-003.
+- BL-005.
+- BL-007.
+- BL-008.
+- BL-011.
+- BL-014.
+- BL-017.
+- BL-018.
+- BL-021.
+
+Architecture traceability:
+- `docs/architecture/gui-architecture.md` — Status and scope, Boundary and responsibility, Implemented capability-to-surface map, User journeys and state/data flow, Operational and security constraints, Remaining implementation details.
+- `docs/architecture/software-architecture.md` — Software Style, Entry Points and Composition, Security Boundaries, Testing Architecture.
+- `docs/architecture/system-architecture.md` — Adapter Ports, Security and Governance, Failure Model, Observability.
+- `docs/software/technology-and-delivery.md` — HTTP API, Across Processes, CI Pipeline, CD and Promotion, Deployment Compatibility.
+- `docs/implementation/change-workflow.md` — Backlog Management, Test-Driven Development, Documentation, Security, Verification and CI/CD.
+
+Acceptance outcomes:
+- [x] ADR-0005 resolves the local GUI/backend serving and process boundary,
+  endpoint prefix/protocol, local grant and exposure, state/source and inline
+  input handling, cancellation, and failure mapping without inventing hosted
+  identity. ADR-0006 amends its serving and listener choices for local
+  containers. The existing OS build matrix is retained; no
+  unverified runtime support or frontend toolchain version is claimed.
+- [x] ADR-0006 accepts the local three-service deployment and MariaDB metadata
+  authority; this decision does not claim implementation.
+- [ ] SQL metadata ports, proposal persistence, readiness, proxy security and
+  volume recovery satisfy ADR-0006 and the BL-023.8–10 criteria.
+- [ ] OpenAPI and Go handler contract tests show that every GUI request maps to an existing application use case, has stable versioned request/result/error behavior, and cannot bypass local authorization, metadata validation, policy, or state transitions.
+- [ ] The Angular GUI exposes exactly the implemented local-profile surfaces listed in the GUI architecture, including limits and explicit actions for activation, scheduling, replay, and cleaning; it does not imply unavailable histories, readiness, authorization, dispatcher, or broader rule support.
+- [ ] Denied, unsupported, invalid, timed-out/cancelled, busy/corrupt, and ambiguous-commit outcomes remain explicit and safely redacted; record content is rendered only for the documented cleaning preview/result and handled according to its classification.
+- [ ] Contract, frontend, synthetic end-to-end local-profile, accessibility/usability, security/redaction, and failure/recovery checks run in CI against the exact candidate artifact; clean local installation and rollback are documented and verified where the decided form factor permits.
+- [ ] Functional and installation documentation identifies prerequisites, permissions, supported operations/limits, failure/recovery behavior, data handling, and unavailable functionality; acceptance and production promotion remain separately evidenced and are not claimed without configured environments.
+
+Required evidence:
+- Tests: endpoint serialization/version/authorization/error/redaction contracts; shared operation-to-use-case checks; Angular unit/component tests; synthetic end-to-end journeys for every documented operation; timeout/cancellation and recovery/ambiguous-commit behavior; no unsupported-query assertions; accessibility checks. Keep adapter and domain tests authoritative for underlying behavior.
+- Documentation: update GUI architecture/API reference, functional local-profile guide, and relevant README guidance in the same change; distinguish current use cases from GUI/API additions and unresolved behavior.
+- Installation/operations: clean setup and launch on the decided supported targets, endpoint binding/permissions, local state/source path and ownership, health limits, shutdown, backup/recovery, update and rollback; do not claim the existing CLI health result is end-to-end readiness.
+- Environments: local synthetic data; isolated test integration; acceptance against the exact candidate artifact; production promotion/smoke only after environment, approval, data-policy, and rollback prerequisites exist.
+
+Open decisions or assumptions:
+- **Accepted:** ADR-0005/0006 define local GUI/API and container boundaries;
+  no remote origins, shared-host/multi-user mode, or new queries are authorized.
+- **Specified:** OpenAPI operation schemas and request-size limits are in ADR-0005.
+- **Resolved delivery detail:** Angular 22, Node 22, Nginx 1.29, MariaDB
+  11.4, and the read-only `/data/sources` bind mount are selected; supported
+  Go targets remain those in ADR-0001.
+- **Current:** CLI, loopback Go HTTP handler/server, API contract and endpoint
+  tests exist; an Angular connectivity shell, MariaDB adapter and Compose
+  installation are implemented, while full GUI journeys remain.
+- **Assumption:** BL-023 covers only operations and constraints in the GUI architecture's implemented capability-to-surface map. Any added use case or query requires a separate refinement and application contract.
+
 ## Coverage verification
 
 | Architecture responsibility | Backlog coverage |
@@ -1307,20 +1401,23 @@ Open decisions or assumptions:
 | Authorization, classification, redaction, and security review gates | BL-005, all affected item evidence |
 | Contract, dependency, race, fault, concurrency, and migration tests | BL-002, BL-004, item-specific acceptance evidence |
 | CLI, API, workers, composition, adapter test host | BL-019 |
+| Angular presentation, local API and three-service metadata deployment | BL-023 (ADR-0005/0006; SQL, listener and composition in BL-023.8–10) |
 | Local development, CI/CD, promotion, rollback, acceptance and smoke | BL-002, BL-020 |
 | Functional, installation, operations, release, and acceptance docs | BL-021 plus same-change documentation in every item |
 | Additional/external replaceable infrastructure and independent deployment | BL-022 |
 
 ## Dependency validation
 
-The dependency graph is acyclic by construction and follows ascending
-identifiers. BL-001 and BL-009 are decision gates; no item may be promoted to
-Ready until its referenced open decisions are resolved. The backlog contains no
-same-level forward dependency: every referenced prerequisite has an earlier
-identifier and definition.
+The dependency graph is acyclic by construction. Existing BL-001 and BL-009
+remain decision gates. ADR-0005/0006 resolve BL-023's local architecture
+gates. BL-023.8/9 can start from the existing ports and API; BL-023.10's
+design is in progress, while integrated implementation depends on those
+items and Angular. No item may be promoted to Ready until its referenced open
+decisions are resolved. Dependencies must refer to defined prerequisites and
+remain acyclic.
 
 Before implementation, each selected item must be decomposed in a separate
 `BL-<id>-<short-name>.md` refinement with observable Given/When/Then criteria,
 a first failing test, compatibility/migration/rollback detail, and all four
-environment-verification levels. No current item is refined or ready merely
-because this roadmap exists.
+environment-verification levels. An item is not ready merely because this
+roadmap exists; its refinement and prerequisites determine readiness.

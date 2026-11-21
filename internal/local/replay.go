@@ -64,7 +64,7 @@ func replayWithFaultHook(ctx context.Context, options Options, originalRunID, re
 		original.SourceDigest == "" || original.Plan.MetadataRevision == "" || original.Plan.MetadataDigest == "" {
 		return ReplayResult{}, domain.NewFailure(domain.FailureInvalidInput, "replay.prepare", "original plan lacks valid pinned inputs")
 	}
-	parsed, _, err := loadActiveMetadata(options.StateDir)
+	parsed, _, err := loadActiveMetadataWithRepository(ctx, options.StateDir, options.MetadataRepository)
 	if err != nil {
 		return ReplayResult{}, err
 	}
@@ -76,7 +76,7 @@ func replayWithFaultHook(ctx context.Context, options Options, originalRunID, re
 		return ReplayResult{}, domain.NewFailure(domain.FailureUnsupportedCapability, "replay.prepare", "local replay requires exactly one source and one object")
 	}
 	source, object := parsed.Document.Sources[0], parsed.Document.Sources[0].Objects[0]
-	sourceAdapter := fileSourceAdapter{root: options.SourceRoot}
+	sourceAdapter := fileSourceAdapter{root: options.SourceRoot, allowedRoot: options.AllowedSourceRoot}
 	_, sourceDigest, err := sourceAdapter.ReadBatch(ctx, object.Path)
 	if err != nil {
 		return ReplayResult{}, err

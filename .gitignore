@@ -3,3 +3,9 @@
 /var/
 __pycache__/
 *.py[cod]
+.env
+data/sources/*
+!data/sources/.gitkeep
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/

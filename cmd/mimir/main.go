@@ -44,10 +44,12 @@ func main() {
 
 func execute(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: mimir <health|validate|validation-report|author|list-metadata|activate|discover|schedule|schedule-stop|run|clean|replay> [options]")
+		fmt.Fprintln(stderr, "usage: mimir <health|serve|validate|validation-report|author|list-metadata|activate|discover|schedule|schedule-stop|run|clean|replay> [options]")
 		return 2
 	}
 	switch args[0] {
+	case "serve":
+		return serveHTTP(args[1:], stdout, stderr)
 	case "health":
 		if len(args) != 1 {
 			fmt.Fprintln(stderr, "health does not accept configuration arguments")
@@ -330,6 +332,7 @@ func contractVersions() []string {
 		discovery.ContractVersion,
 		ports.MetadataRepositoryVersion,
 		ports.MetadataValidationStoreVersion,
+		ports.MetadataProposalStoreVersion,
 		ports.DiscoveryProviderVersion,
 		ports.SourceAdapterVersion,
 		ports.DestinationAdapterVersion,

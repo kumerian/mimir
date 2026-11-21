@@ -75,6 +75,93 @@ identical report content. Invalid authoring persists this report before
 returning a failure and does not create a revision. Protect and back up these
 reports with the metadata directory; they do not contain the source document.
 
+## Local HTTP backend lifecycle
+
+The optional Go HTTP server exposes only the use cases in
+[`../user/local-reference-ingestion.md#local-http-api`](../user/local-reference-ingestion.md#local-http-api).
+It is a local single-user process, not an operator-managed service. Start it
+from a terminal with an absolute state directory and explicit local grant:
+
+```sh
+mkdir -m 700 /tmp/mimir-api-state
+./bin/mimir serve --state-dir /tmp/mimir-api-state --allow-local
+```
+
+The default listener is `127.0.0.1:8787`; `--listen` accepts only loopback IP
+literals with a valid TCP port. Do not proxy or forward the listener to a
+remote interface. Startup fixes the state directory for the process lifetime.
+Source roots are supplied explicitly for discovery, run, and replay requests;
+metadata and cleaning documents are bounded inline JSON. The HTTP API accepts
+no metadata/record paths and has no filesystem browsing or CORS.
+
+Stop with Ctrl-C or SIGTERM. The server stops accepting new work and waits up
+to 30 seconds for in-flight handlers; a forced close cancels their request
+contexts. A request disconnect or timeout is not a reason to retry a mutating
+operation blindly. Use the `mimir.failure/v1` category and commit-certainty
+fields; reconcile ambiguous outcomes using the existing recovery instructions
+below. Concurrent state access continues to use the local state-directory
+lock. A `conflict`/busy result is not repaired by the HTTP layer; preserve the
+directory and follow recovery rather than editing journals.
+
+`GET /api/v1/health` reports compiled profile identity only. It does not check
+the state directory, source root, destination, or operating environment.
+POST requests require `Mimir-Contract-Version: mimir.gui-api/v1`, JSON content
+type, and a matching loopback `Origin`. The server does not emit CORS headers
+or support preflight. It has no request-body logging or automatic retry.
+Cleaning responses intentionally contain record data and must be handled under
+their explicit classification; other operation results omit source records.
+This HTTP backend is not suitable for shared hosts, multi-user access, or
+production.
+
+## Three-container profile
+
+The local Compose profile is defined in `docker-compose.yml` and has exactly
+three runtime services: `frontend` (Angular served by Nginx), `backend` (Go),
+and `mariadb`. Start it from the repository root after setting three distinct
+random hexadecimal passwords in the ignored `.env` file; `.env.example` is a
+variable-name template, not usable credentials. MariaDB creates a
+`mimir_runtime` account limited to `SELECT`, `INSERT`, and `UPDATE` on the
+`metadata` schema and a separate `mimir_migrator` account used only by backend
+startup migrations. Ordinary API operations use the runtime credential.
+Never commit `.env`, print credentials, or place credentials in requests,
+logs, or source metadata.
+
+The frontend is published only on `127.0.0.1:8080` by default. Nginx forwards
+`/api/` to the backend and preserves the browser `Host` and `Origin`; neither
+backend nor MariaDB has a host-published port. Separate private bridge
+networks prevent the frontend from connecting directly to MariaDB. The
+backend root filesystem is read-only except for its `/tmp` tmpfs; its named
+state volume is writable, and `./data/sources` is mounted read-only at
+`/data/sources`. Container API requests for discovery, runs, and replay must
+specify a source root within `/data/sources`. The Angular interface currently
+confirms profile identity and API connectivity; full operation journeys
+remain tracked in BL-023.4–.6.
+
+Compose health ordering waits for MariaDB initialization, backend database
+migrations and `/readyz`, then the frontend. `/api/v1/health` continues to
+report compiled profile identity only; it is not database or filesystem
+readiness. The backend readiness probe checks MariaDB separately and returns
+unavailable when that dependency cannot be reached. Startup retries database
+availability for a bounded period; later database errors are returned as
+redacted failures without blind write retries.
+
+`docker compose down` stops and removes the containers and networks but keeps
+both named volumes. To back up, stop the application and take one offline,
+protected backup set containing both the MariaDB data volume and backend
+state volume. Restore both volumes together while the services remain
+stopped, then start the stack and verify backend readiness and retained
+metadata revision references. There is no automated backup or live
+cross-volume snapshot. Do not copy only one authority or use
+`docker compose down --volumes` unless intentionally deleting all persisted
+metadata and execution data. The file-based CLI profile is separate; no
+automatic file-to-MariaDB migration is provided.
+
+Changing the passwords in `.env` does not rotate existing MariaDB accounts:
+the initialization script runs only when MariaDB creates a new data volume.
+Rotate credentials deliberately in MariaDB and the environment together,
+then verify readiness before resuming use. Keep the prior protected backup
+until the rotation is verified.
+
 ## Recovery
 
 1. Stop other local processes using the state directory.

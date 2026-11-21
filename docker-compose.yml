@@ -1,0 +1,95 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    init: true
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD in .env}
+      MARIADB_DATABASE: metadata
+      MIMIR_DB_RUNTIME_PASSWORD: ${MIMIR_DB_RUNTIME_PASSWORD:?Set MIMIR_DB_RUNTIME_PASSWORD in .env}
+      MIMIR_DB_MIGRATION_PASSWORD: ${MIMIR_DB_MIGRATION_PASSWORD:?Set MIMIR_DB_MIGRATION_PASSWORD in .env}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./deploy/mariadb/entrypoint.sh:/usr/local/bin/mimir-entrypoint.sh:ro
+      - ./deploy/mariadb/01-create-users.sh:/docker-entrypoint-initdb.d/01-create-users.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/mimir-entrypoint.sh"]
+    networks:
+      - metadata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend/Dockerfile
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 35s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    command:
+      - serve
+      - --container-network
+      - --listen
+      - 0.0.0.0:8787
+      - --state-dir
+      - /var/lib/mimir
+      - --allow-local
+    environment:
+      MIMIR_DB_ADDRESS: mariadb:3306
+      MIMIR_DB_RUNTIME_USER: mimir_runtime
+      MIMIR_DB_RUNTIME_PASSWORD: ${MIMIR_DB_RUNTIME_PASSWORD:?Set MIMIR_DB_RUNTIME_PASSWORD in .env}
+      MIMIR_DB_MIGRATION_USER: mimir_migrator
+      MIMIR_DB_MIGRATION_PASSWORD: ${MIMIR_DB_MIGRATION_PASSWORD:?Set MIMIR_DB_MIGRATION_PASSWORD in .env}
+    volumes:
+      - backend_state:/var/lib/mimir
+      - ./data/sources:/data/sources:ro
+    networks:
+      frontend:
+        aliases:
+          - backend-frontend
+      metadata: {}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8787/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:${MIMIR_HTTP_PORT:-8080}:80"
+    networks:
+      - frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+networks:
+  frontend:
+    driver: bridge
+  metadata:
+    driver: bridge
+
+volumes:
+  backend_state:
+  mariadb_data:

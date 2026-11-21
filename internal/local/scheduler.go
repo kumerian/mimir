@@ -9,15 +9,17 @@ import (
 
 	"github.com/kumerian/mimir/internal/domain"
 	"github.com/kumerian/mimir/internal/metadata"
+	"github.com/kumerian/mimir/internal/ports"
 	"github.com/kumerian/mimir/internal/scheduler"
 	"github.com/kumerian/mimir/internal/state"
 )
 
 type ScheduleOptions struct {
-	StateDir   string
-	Actor      string
-	AllowLocal bool
-	At         time.Time
+	StateDir           string
+	Actor              string
+	AllowLocal         bool
+	At                 time.Time
+	MetadataRepository ports.MetadataRepository
 }
 
 type ScheduleResult struct {
@@ -57,7 +59,7 @@ func evaluateSchedules(ctx context.Context, options ScheduleOptions, afterReques
 		return ScheduleResult{}, err
 	}
 	defer releaseLock(lock)
-	parsed, _, err := loadActiveMetadata(options.StateDir)
+	parsed, _, err := loadActiveMetadataWithRepository(ctx, options.StateDir, options.MetadataRepository)
 	if err != nil {
 		return ScheduleResult{}, err
 	}
