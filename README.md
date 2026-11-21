@@ -54,9 +54,10 @@ The Go backend also exposes the existing local-profile operations through a
 loopback-only HTTP/JSON API. Start it with an absolute private state directory
 and explicit local grant, for example
 `./bin/mimir serve --state-dir /absolute/path/to/mimir-state --allow-local`.
-The default listener is `127.0.0.1:8787`. The Angular screens and production
-journeys remain in progress; the container profile includes an Angular
-connectivity shell. See the API and local-server instructions in the
+The default listener is `127.0.0.1:8787`. The Angular workspace provides
+metadata, discovery, bounded run, schedule-request, replay, and explicit
+cleaning journeys for the local reference profile; it does not add production
+or hosted-service capabilities. See the GUI, API, and local-server instructions in the
 [local reference guide](docs/user/local-reference-ingestion.md#local-http-api).
 
 ## Local containers

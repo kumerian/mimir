@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**The Go HTTP backend, OpenAPI contract, Angular connectivity shell, Nginx
+**The Go HTTP backend, OpenAPI contract, Angular operation journeys, Nginx
 proxy, Compose profile, and MariaDB metadata adapter are implemented.** The
 Angular browser application is served by Nginx and proxies the API same-origin
 in the three-container profile in
@@ -11,8 +11,8 @@ The backend exposes synchronous HTTP/JSON endpoints under `/api/v1`, described
 by OpenAPI 3.1. The implemented standalone process is loopback-only and starts
 only with explicit `--allow-local`; the explicit container-network mode retains
 the grant, restricts sources to the read-only `/data/sources` mount, and listens
-on the private container network. The current Angular UI is a connectivity
-shell, not the complete set of operation journeys. See
+on the private container network. The Angular UI presents the mapped local
+reference operations without adding domain behavior. See
 [ADR-0005](./decisions/ADR-0005-local-gui-and-http-endpoint-boundary.md) for
 the accepted boundary. This document describes how the GUI can cover
 existing local-reference capabilities without adding domain behavior or
@@ -217,12 +217,16 @@ constraints in `docs/operations/local-reference.md` and
 the MariaDB adapter in `internal/adapters/mariadb/`; and container composition
 in `docker-compose.yml`, `deploy/`, and `frontend/`.
 
-## Remaining GUI journeys
+## GUI implementation and remaining verification
 
 The local server, `/api/v1` operation contract, input limits, cancellation
 propagation, same-origin checks, stable failure mapping, explicit container
 listener, SQL metadata adapter and proposal port, Angular/Nginx integration,
-and Compose profile are implemented under ADR-0005/6 and BL-023.8–.10. Full
-Angular operation journeys remain tracked in BL-023.4–.6. Additional query or
+and Compose profile, Angular journeys for the mapped operations, focused
+Angular unit tests, Chromium E2E journeys, and tagged synthetic acceptance
+tests are implemented under ADR-0005/6 and BL-023.4–.6/8–10. Candidate-level
+CI integration, independent accessibility/security review, installation,
+backup/restore, and deployed acceptance verification remain tracked under
+BL-023.7. Additional query or
 domain capabilities remain out of scope and require separate use-case and
 security decisions.

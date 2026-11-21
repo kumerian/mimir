@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "ng build --configuration production"
+    "build": "ng build --configuration production",
+    "test:unit": "vitest run",
+    "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
     "@angular/common": "22.3.0",
@@ -17,6 +19,11 @@
     "@angular/build": "22.2.7",
     "@angular/cli": "22.2.7",
     "@angular/compiler-cli": "22.3.0",
-    "typescript": "6.0.3"
+    "@angular/platform-browser-dynamic": "^22.3.0",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
+    "jsdom": "^27.2.0",
+    "typescript": "6.0.3",
+    "vitest": "^5.1.1"
   }
 }

@@ -11,7 +11,7 @@ endif
 GO ?= $(shell $(PYTHON) scripts/setup_dev.py --print-command)
 GOFMT ?= $(shell $(PYTHON) scripts/setup_dev.py --print-gofmt)
 
-.PHONY: help test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
+.PHONY: help test test-race contract integration acceptance lint security build package install-smoke generate-metadata-schema docs frontend-test frontend-build frontend-e2e clean
 
 help:
 	@echo Available targets:
@@ -45,6 +45,19 @@ contract:
 
 integration:
 	$(PYTHON) scripts/run_tagged.py integration
+
+acceptance:
+	$(PYTHON) scripts/run_tagged.py acceptance
+
+frontend-test:
+	npm --prefix frontend run test:unit
+
+frontend-build:
+	npm --prefix frontend run build
+
+frontend-e2e:
+	npx --prefix frontend playwright install chromium
+	npm --prefix frontend run test:e2e
 
 lint:
 	$(PYTHON) scripts/check_format.py --gofmt "$(GOFMT)"

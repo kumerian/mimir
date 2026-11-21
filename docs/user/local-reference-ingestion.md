@@ -298,10 +298,15 @@ execution and journals are not production approved.
 ## Local HTTP API
 
 The Go backend exposes the same existing local use cases for a same-origin
-client. The local Compose profile includes a minimal Angular profile-identity
-and connectivity shell; full Angular operation journeys, run-history or record
-queries, schedule dispatch, and production hosting are not provided. Container
-setup and persistence are documented in the
+client. The Angular workspace provides profile identity, metadata validation
+and digest-based report lookup, immutable draft authoring and explicit
+activation, advisory discovery, bounded ingestion, schedule evaluation and
+pending-request stopping, constrained replay, and explicit cleaning preview
+and apply. These are presentation journeys over existing use cases, not new
+domain behavior. The GUI does not provide run history or record queries,
+schedule dispatch, proposal history, hosted identity, or production hosting.
+Cleaning responses contain classified record content and must be cleared and
+handled as sensitive local data. Container setup and persistence are documented in the
 [three-container operations guide](../operations/local-reference.md#three-container-profile).
 The versioned contract is
 [`contracts/openapi/local-profile-v1.json`](../../contracts/openapi/local-profile-v1.json).

@@ -33,6 +33,7 @@ func TestHealthReportsBuildAndContractIdentity(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`"status":"ready"`, `"mimir.metadata/v1"`, `"local-reference-v1"`,
+		`"mimir.gui-api/v1"`,
 		`"mimir.run-plan/v1"`, `"mimir.run-state/v1"`, `"mimir.discovery/v1"`,
 		`"local.source/v1"`, `"local.destination/v1"`, `"mimir.secret-resolver/v1"`,
 		`"mimir.run-state-store/v1"`, `"mimir.source-adapter/v1"`,

@@ -1,0 +1,361 @@
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { Subject, of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppComponent } from './app.component';
+import { ApiService, CleaningResult } from './api.service';
+
+describe('AppComponent local-operation safeguards', () => {
+  let component: AppComponent;
+  let api: {
+    health: ReturnType<typeof vi.fn>;
+    activate: ReturnType<typeof vi.fn>;
+    previewCleaning: ReturnType<typeof vi.fn>;
+    applyCleaning: ReturnType<typeof vi.fn>;
+    author: ReturnType<typeof vi.fn>;
+    run: ReturnType<typeof vi.fn>;
+    stopScheduleRequests: ReturnType<typeof vi.fn>;
+  };
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    api = {
+      health: vi.fn(() => of({
+        status: 'ready',
+        version: 'test',
+        commit: 'test',
+        contracts: ['mimir.gui-api/v1'],
+        profile: 'local-reference-v1',
+      })),
+      activate: vi.fn(() => of({
+        revision: 'draft-v2',
+        status: 'active',
+        digest: 'b'.repeat(64),
+      })),
+      previewCleaning: vi.fn(),
+      applyCleaning: vi.fn(),
+      author: vi.fn(() => of({
+        revision: 'draft-v2',
+        status: 'draft',
+        digest: 'b'.repeat(64),
+      })),
+      run: vi.fn(() => of({
+        contractVersion: 'mimir.run/v1',
+        runId: 'a'.repeat(64),
+        sourceRoot: '/tmp/orders',
+        status: 'committed',
+        committedRows: 1,
+        rejectedRows: 0,
+      })),
+      stopScheduleRequests: vi.fn(() => of({
+        contractVersion: 'mimir.stop-schedule-requests/v1',
+        stoppedRequests: 0,
+      })),
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        { provide: ApiService, useValue: api },
+      ],
+    });
+    component = TestBed.runInInjectionContext(() => new AppComponent());
+  });
+
+  it('does not author until validation passed for the exact current text', () => {
+    expect(component.canAuthor()).toBe(false);
+    component.report.set({
+      contractVersion: 'mimir.metadata-validation/v1',
+      inputDigest: 'a'.repeat(64),
+      valid: true,
+      runEligible: false,
+      securityImpact: 'input_not_retained',
+      compatibilityDecision: 'accepted_v1',
+      diagnostics: [],
+    });
+    expect(component.canAuthor()).toBe(false);
+
+    component.metadataText = component.metadataText;
+    (component as unknown as { lastValidatedText: string }).lastValidatedText = component.metadataText;
+    expect(component.canAuthor()).toBe(true);
+  });
+
+  it('allows activation with an optional operator-supplied expected active revision', () => {
+    component.revisions.set([
+      { revision: 'active-v1', status: 'active', digest: 'a'.repeat(64) },
+      { revision: 'draft-v2', status: 'draft', digest: 'b'.repeat(64) },
+    ]);
+    component.activationRevision = 'draft-v2';
+    expect(component.canActivate()).toBe(true);
+    component.expectedActiveRevision = 'active-v1';
+    expect(component.canActivate()).toBe(true);
+    component.activateMetadata();
+    expect(api.activate).toHaveBeenCalledWith({
+      revision: 'draft-v2',
+      expectedActive: 'active-v1',
+    });
+  });
+
+  it('does not expose schedule evaluation as dispatch', () => {
+    component.scheduleResult.set({
+      decisions: [{
+        sourceId: 'orders',
+        objectId: 'orders',
+        eligible: true,
+        reason: 'slot_due',
+      }],
+      requests: [{
+        contractVersion: 'mimir.schedule-request/v1',
+        requestId: 'c'.repeat(64),
+        metadataRevision: 'active-v1',
+        sourceId: 'orders',
+        objectId: 'orders',
+        scheduledAt: '2026-01-01T00:00:00Z',
+        retryLimit: 0,
+        concurrencyLimit: 1,
+      }],
+    });
+    expect(component.scheduleResult()?.requests).toHaveLength(1);
+  });
+
+  it('requires an explicit preview match before cleaning apply', () => {
+    component.correctionId = 'trim-name';
+    component.cleaningField = 'name';
+    component.cleaningRecordText = '{"name":"  Example  "}';
+    component.cleaningClassification = 'internal';
+    component.cleaningOperation = 'trim';
+    component.applyConfirmed = true;
+    expect(component.canApplyCleaning()).toBe(false);
+
+    component.cleaningResult.set({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: true,
+      alreadyApplied: false,
+    });
+    const expectedRequest = {
+      record: '{"name":"  Example  "}',
+      classification: 'internal',
+      correction: {
+        id: 'trim-name',
+        version: 'v1',
+        operation: 'trim',
+        field: 'name',
+      },
+    };
+    const access = component as unknown as {
+      previewRequestKey: string;
+      pretty(value: unknown): string;
+    };
+    access.previewRequestKey = access.pretty(expectedRequest);
+    expect(component.canApplyCleaning()).toBe(true);
+  });
+
+  it('rejects cleaning JSON with integers outside the safe range', () => {
+    component.correctionId = 'trim-id';
+    component.cleaningField = 'id';
+    component.cleaningRecordText = '{"id":9007199254740993}';
+    component.cleaningOperation = 'trim';
+    const access = component as unknown as { cleaningRequest(): unknown };
+    expect(access.cleaningRequest()).toBeNull();
+
+    component.cleaningRecordText = '{"id":null}';
+    component.cleaningOperation = 'replace_null';
+    component.replacementValueText = '9007199254740993';
+    expect(access.cleaningRequest()).toBeNull();
+  });
+
+  it('ignores stale cleaning responses after inputs are edited or cleared', () => {
+    const previewResponse = new Subject<CleaningResult>();
+    api.previewCleaning.mockReturnValue(previewResponse);
+    component.correctionId = 'trim-name';
+    component.cleaningField = 'name';
+    component.cleaningRecordText = '{"name":"  Example  "}';
+
+    component.previewCleaning();
+    component.updateCleaningRecord({
+      target: { value: '{"name":"changed"}' },
+    } as unknown as Event);
+    previewResponse.next({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: true,
+      alreadyApplied: false,
+    });
+    expect(component.cleaningResult()).toBeNull();
+
+    const applyResponse = new Subject<CleaningResult>();
+    api.applyCleaning.mockReturnValue(applyResponse);
+    component.cleaningRecordText = '{"name":"  Example  "}';
+    component.cleaningResult.set({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: true,
+      alreadyApplied: false,
+    });
+    component.applyConfirmed = true;
+    const access = component as unknown as {
+      previewRequestKey: string;
+      pretty(value: unknown): string;
+    };
+    access.previewRequestKey = access.pretty({
+      record: '{"name":"  Example  "}',
+      classification: 'internal',
+      correction: {
+        id: 'trim-name',
+        version: 'v1',
+        operation: 'trim',
+        field: 'name',
+      },
+    });
+    component.applyCleaning();
+    component.clearCleaning();
+    applyResponse.next({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: false,
+      alreadyApplied: false,
+    });
+    expect(component.cleaningResult()).toBeNull();
+  });
+
+  it('clears prior mutating and ingestion results before new attempts', () => {
+    const runResponse = new Subject<{ runId: string; metadataRevision: string; recordCount: number; alreadyCommitted: boolean }>();
+    api.run.mockReturnValue(runResponse);
+    component.runResult.set({
+      runId: 'a'.repeat(64),
+      metadataRevision: 'active-v1',
+      recordCount: 10,
+      alreadyCommitted: false,
+    });
+    component.runSourceRoot = '/tmp/orders';
+    component.runIngestion();
+    expect(component.runResult()).toBeNull();
+    runResponse.next({
+      runId: 'a'.repeat(64),
+      metadataRevision: 'active-v1',
+      recordCount: 10,
+      alreadyCommitted: false,
+    });
+    runResponse.complete();
+
+    const authorResponse = new Subject<{ revision: string; status: string; digest: string }>();
+    api.author.mockReturnValue(authorResponse);
+    component.authoredRevision.set({
+      revision: 'draft-v1',
+      status: 'draft',
+      digest: 'a'.repeat(64),
+    });
+    component.report.set({
+      contractVersion: 'mimir.metadata-validation/v1',
+      inputDigest: 'a'.repeat(64),
+      valid: true,
+      runEligible: false,
+      securityImpact: 'input_not_retained',
+      compatibilityDecision: 'accepted_v1',
+      diagnostics: [],
+    });
+    (component as unknown as { lastValidatedText: string }).lastValidatedText = component.metadataText;
+    component.authorMetadata();
+    expect(component.authoredRevision()).toBeNull();
+    authorResponse.next({
+      revision: 'draft-v2',
+      status: 'draft',
+      digest: 'b'.repeat(64),
+    });
+    authorResponse.complete();
+
+    const activateResponse = new Subject<{ revision: string; status: string; digest: string }>();
+    api.activate.mockReturnValue(activateResponse);
+    component.activationResult.set({
+      revision: 'draft-v1',
+      status: 'active',
+      digest: 'a'.repeat(64),
+    });
+    component.activationRevision = 'draft-v1';
+    component.activateMetadata();
+    expect(component.activationResult()).toBeNull();
+    activateResponse.next({
+      revision: 'draft-v1',
+      status: 'active',
+      digest: 'a'.repeat(64),
+    });
+    activateResponse.complete();
+
+    const stopResponse = new Subject<{ status: string }>();
+    api.stopScheduleRequests.mockReturnValue(stopResponse);
+    component.stopResult.set({ status: 'stopped' });
+    component.stopScheduleRequests();
+    expect(component.stopResult()).toBeNull();
+  });
+
+  it('marks unrecognized mutating failures as unknown outcomes', () => {
+    const access = component as unknown as {
+      failureView(error: unknown, mutatingOperation?: string): {
+        category: string;
+        commitCertainty?: string;
+        reconciliation?: string;
+        retryable?: boolean;
+      };
+    };
+    const failure = access.failureView(
+      new HttpErrorResponse({ status: 502, error: { message: 'proxy lost response' } }),
+      'Run ingestion',
+    );
+    expect(failure.category).toBe('unknown_outcome');
+    expect(failure.commitCertainty).toBe('unknown');
+    expect(failure.reconciliation).toBe('reconcile_before_retry');
+    expect(failure.retryable).toBe(false);
+  });
+
+  it('keeps unrecognized read-only failures on the existing HTTP path', () => {
+    const access = component as unknown as {
+      failureView(error: unknown, mutatingOperation?: string): {
+        category: string;
+        commitCertainty?: string;
+      };
+    };
+    const failure = access.failureView(
+      new HttpErrorResponse({ status: 502, error: { message: 'proxy error' } }),
+    );
+    expect(failure.category).toBe('http_error');
+    expect(failure.commitCertainty).toBeUndefined();
+  });
+});
