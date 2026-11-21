@@ -106,7 +106,7 @@ acceptance evidence are not available in this task.
 | BL-020 | Blocked | Candidate identity/checksum now derives its contract list from executable health and is tested locally. Test/acceptance/production deployment target, human approval configuration, signing, smoke and rollback drill are absent. Next action: operators provision and protect the required environments and signing identity. |
 | BL-021 | In Progress | README and local guides cover implemented behavior; Linux/amd64 clean install and offline whole-directory backup/restore drill pass. Other-target installs, migration and candidate promotion/rollback remain unverified or externally blocked. |
 | BL-022 | Blocked | Other external adapters remain deferred by ADR-0004. The concrete local MariaDB metadata adapter is separately accepted in ADR-0006 and tracked under BL-023.8. |
-| BL-023 | In Progress | ADR-0005/0006 accept the local GUI/API and three-container boundaries. Go HTTP, OpenAPI, Angular operation journeys, MariaDB metadata persistence, and Compose deployment are implemented; candidate-level verification and backup/restore evidence remain. BL-023.7–.10 are In Progress. |
+| BL-023 | In Progress | ADR-0005/0006 accept the local GUI/API and three-container boundaries. Go HTTP, OpenAPI, Angular operation journeys, MariaDB metadata persistence, Compose deployment, unit tests, Chromium E2E, and tagged synthetic acceptance are implemented. External acceptance, exact-artifact promotion, independent sign-off, backup/restore, and BL-023.7–.10 evidence remain. |
 
 The proposed increments follow the accepted system delivery order: contracts,
 metadata, planning, runtime, safe reference data movement, transformation,

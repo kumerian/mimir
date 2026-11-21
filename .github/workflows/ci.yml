@@ -94,16 +94,28 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Build candidate
         run: |
           mkdir -p dist
-          go build -trimpath -buildvcs=false -ldflags="-buildid=" -o dist/mimir ./cmd/mimir
-          sha256sum dist/mimir > dist/SHA256SUMS
+          go build -trimpath -buildvcs=false -ldflags="-buildid=" -o dist/mimir-candidate ./cmd/mimir
+          sha256sum dist/mimir-candidate > dist/SHA256SUMS
+          npm --prefix frontend ci
+          npm --prefix frontend run test:unit
+          npm --prefix frontend run build
+          npx --prefix frontend playwright install chromium
+          npm --prefix frontend run test:e2e
+          cp -R frontend/dist/mimir/browser dist/gui
       - name: Record candidate identity
         run: |
-          python3 scripts/required_check.py candidate-identity -- python3 scripts/artifact_identity.py \
-            --binary dist/mimir --output dist/identity.json --require-clean
-          sha256sum dist/identity.json >> dist/SHA256SUMS
+          python3 scripts/required_check.py candidate-identity -- python3 scripts/gui_candidate_identity.py \
+            --binary dist/mimir-candidate --frontend-dist dist/gui --output dist/gui-candidate-identity.json --require-clean
+          sha256sum dist/gui-candidate-identity.json >> dist/SHA256SUMS
       - name: Upload candidate artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -181,6 +193,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Frontend unit tests
+        run: npm --prefix frontend run test:unit
+      - name: Frontend browser verification
+        run: |
+          npx --prefix frontend playwright install chromium
+          npm --prefix frontend run test:e2e
       - name: Validate Compose configuration
         run: |
           cp .env.example .env

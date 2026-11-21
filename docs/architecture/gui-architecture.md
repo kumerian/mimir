@@ -222,9 +222,11 @@ in `docker-compose.yml`, `deploy/`, and `frontend/`.
 The local server, `/api/v1` operation contract, input limits, cancellation
 propagation, same-origin checks, stable failure mapping, explicit container
 listener, SQL metadata adapter and proposal port, Angular/Nginx integration,
-and Compose profile, and Angular journeys for the mapped operations are
-implemented under ADR-0005/6 and BL-023.4–.6/8–10. Candidate-level CI,
-accessibility, security/redaction, installation, backup/restore, and
-acceptance verification remain tracked under BL-023.7. Additional query or
+and Compose profile, Angular journeys for the mapped operations, focused
+Angular unit tests, Chromium E2E journeys, and tagged synthetic acceptance
+tests are implemented under ADR-0005/6 and BL-023.4–.6/8–10. Candidate-level
+CI integration, independent accessibility/security review, installation,
+backup/restore, and deployed acceptance verification remain tracked under
+BL-023.7. Additional query or
 domain capabilities remain out of scope and require separate use-case and
 security decisions.
