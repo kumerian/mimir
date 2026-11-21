@@ -457,6 +457,7 @@ export class AppComponent implements OnInit {
         this.healthBusy.set(false);
       },
       error: (error: unknown) => {
+        this.health.set(null);
         this.healthError.set(this.failureView(error));
         this.healthBusy.set(false);
       },
