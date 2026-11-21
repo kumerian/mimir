@@ -23,7 +23,7 @@ EXPECTED_PATHS = {
     "/cleaning/apply": {"post"},
 }
 CONTRACT_VERSION = "mimir.gui-api/v1"
-METHODS = {"get", "post"}
+METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 
 
 def fail(message: str) -> None:
