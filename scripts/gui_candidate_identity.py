@@ -76,9 +76,15 @@ def main() -> int:
         if health.returncode:
             raise ValueError("candidate health command failed")
         health_json = json.loads(health.stdout)
+        if not isinstance(health_json, dict) or health_json.get("status") != "ready":
+            raise ValueError("candidate health output is incomplete")
         contracts = health_json.get("contracts")
         if not isinstance(contracts, list) or not contracts:
             raise ValueError("candidate health did not report contracts")
+        if any(not isinstance(contract, str) or not contract.strip() for contract in contracts):
+            raise ValueError("candidate health contains an invalid contract identity")
+        if len(set(contracts)) != len(contracts):
+            raise ValueError("candidate health contains duplicate contract identities")
 
         identity = {
             "sourceRevision": revision,
