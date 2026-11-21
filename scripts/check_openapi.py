@@ -121,7 +121,16 @@ def check(contract_path: Path) -> None:
             default = operation.get("responses", {}).get("default", {})
             if default.get("$ref") != "#/components/responses/Failure":
                 fail(f"{method.upper()} {route} lacks the stable failure response")
-    same_origin = document.get("components", {}).get("parameters", {}).get("SameOrigin", {})
+    parameter_components = document.get("components", {}).get("parameters", {})
+    contract_version = parameter_components.get("ContractVersion", {})
+    if (
+        contract_version.get("name") != "Mimir-Contract-Version"
+        or contract_version.get("in") != "header"
+        or contract_version.get("required") is not True
+        or contract_version.get("schema", {}).get("const") != CONTRACT_VERSION
+    ):
+        fail("ContractVersion parameter must require the supported Mimir-Contract-Version header")
+    same_origin = parameter_components.get("SameOrigin", {})
     if (
         same_origin.get("name") != "Origin"
         or same_origin.get("in") != "header"
