@@ -578,7 +578,10 @@ export class AppComponent implements OnInit {
   }
 
   stopScheduleRequests(): void {
-    this.execute('Stop pending schedule requests', this.api.stopScheduleRequests(this.stopReason), (result) => this.stopResult.set(result));
+    this.execute('Stop pending schedule requests', this.api.stopScheduleRequests(this.stopReason), (result) => {
+      this.stopResult.set(result);
+      this.scheduleResult.set(null);
+    });
   }
 
   updateStopReason(event: Event): void {
