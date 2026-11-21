@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"syscall"
 	"time"
 
@@ -46,11 +45,9 @@ func serveHTTP(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "local reference profile is unavailable")
 		return 1
 	}
-	contracts := append(contractVersions(), httpapi.ContractVersion)
-	sort.Strings(contracts)
 	profile := httpapi.ProfileHealth{
 		Status: "ready", Version: buildVersion, Commit: buildCommit,
-		Contracts: contracts, Profile: "local-reference-v1",
+		Contracts: contractVersions(), Profile: "local-reference-v1",
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

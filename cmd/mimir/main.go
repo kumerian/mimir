@@ -16,6 +16,7 @@ import (
 	"github.com/kumerian/mimir/internal/cleaning"
 	"github.com/kumerian/mimir/internal/discovery"
 	"github.com/kumerian/mimir/internal/domain"
+	"github.com/kumerian/mimir/internal/httpapi"
 	"github.com/kumerian/mimir/internal/local"
 	"github.com/kumerian/mimir/internal/metadata"
 	"github.com/kumerian/mimir/internal/planning"
@@ -330,6 +331,7 @@ func contractVersions() []string {
 		state.ContractVersion,
 		replay.ContractVersion,
 		discovery.ContractVersion,
+		httpapi.ContractVersion,
 		ports.MetadataRepositoryVersion,
 		ports.MetadataValidationStoreVersion,
 		ports.MetadataProposalStoreVersion,
