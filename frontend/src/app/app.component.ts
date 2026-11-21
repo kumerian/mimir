@@ -502,7 +502,7 @@ export class AppComponent implements OnInit {
     this.execute('Author metadata', this.api.author(metadata), (summary) => {
       this.authoredRevision.set(summary);
       this.revisions.update((items) => [
-        ...items.filter((item) => item.revision !== summary.revision),
+        ...items.filter((item) => item.revision !== summary.revision || item.status !== summary.status),
         summary,
       ]);
     });
