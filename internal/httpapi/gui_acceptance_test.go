@@ -20,19 +20,19 @@ type guiAcceptanceOperations struct {
 
 func (guiAcceptanceOperations) Health(context.Context) (ProfileHealth, error) {
 	return ProfileHealth{
-		Status: "ready",
-		Profile: "local-reference-v1",
+		Status:    "ready",
+		Profile:   "local-reference-v1",
 		Contracts: []string{ContractVersion},
 	}, nil
 }
 
 func (guiAcceptanceOperations) Validate(context.Context, json.RawMessage) (metadata.ValidationReport, error) {
 	return metadata.ValidationReport{
-		ContractVersion: metadata.ValidationReportVersion,
-		InputDigest: strings.Repeat("a", 64),
-		Valid: true,
-		RunEligible: false,
-		SecurityImpact: "input_not_retained",
+		ContractVersion:       metadata.ValidationReportVersion,
+		InputDigest:           strings.Repeat("a", 64),
+		Valid:                 true,
+		RunEligible:           false,
+		SecurityImpact:        "input_not_retained",
 		CompatibilityDecision: "accepted_v1",
 	}, nil
 }
@@ -51,9 +51,9 @@ func (guiAcceptanceOperations) Discover(context.Context, DiscoveryRequest) (loca
 
 func (guiAcceptanceOperations) Run(context.Context, RunRequest) (local.Result, error) {
 	return local.Result{
-		RunID: "c",
+		RunID:            "c",
 		MetadataRevision: "synthetic-orders-v1",
-		RecordCount: 1,
+		RecordCount:      1,
 		AlreadyCommitted: false,
 	}, nil
 }
@@ -68,12 +68,12 @@ func (guiAcceptanceOperations) StopScheduleRequests(context.Context, StopSchedul
 
 func (guiAcceptanceOperations) Replay(context.Context, ReplayRequest) (local.ReplayResult, error) {
 	return local.ReplayResult{
-		ReplayPlanID: "synthetic-replay",
+		ReplayPlanID:  "synthetic-replay",
 		OriginalRunID: "d",
 		Result: local.Result{
-			RunID: "d",
+			RunID:            "d",
 			MetadataRevision: "synthetic-orders-v1",
-			RecordCount: 1,
+			RecordCount:      1,
 			AlreadyCommitted: true,
 		},
 	}, nil
@@ -81,7 +81,7 @@ func (guiAcceptanceOperations) Replay(context.Context, ReplayRequest) (local.Rep
 
 func (guiAcceptanceOperations) Clean(context.Context, CleaningRequest, bool) (local.CleaningResult, error) {
 	return local.CleaningResult{
-		Record: map[string]any{"name": "Example"},
+		Record:  map[string]any{"name": "Example"},
 		Preview: true,
 	}, nil
 }
