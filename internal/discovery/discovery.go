@@ -100,10 +100,11 @@ func CreateProposal(activeRevision string, observation Observation, report Repor
 	if _, err := columnMap(observation.Columns); err != nil {
 		return Proposal{}, err
 	}
-	columns := append([]metadata.Column(nil), observation.Columns...)
+	columns := append([]metadata.Column{}, observation.Columns...)
+	observation.Columns = columns
 	return Proposal{
 		ActiveRevision: activeRevision, Observation: observation, Report: report,
-		Proposed: columns, ExecutionReady: false,
+		Proposed: append([]metadata.Column{}, columns...), ExecutionReady: false,
 	}, nil
 }
 
