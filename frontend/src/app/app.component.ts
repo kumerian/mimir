@@ -540,6 +540,7 @@ export class AppComponent implements OnInit {
   discover(): void {
     const sourceRoot = this.discoverySourceRoot.trim();
     if (!sourceRoot) return;
+    this.discoveryResult.set(null);
     this.execute('Discover schema', this.api.discover({
       sourceRoot,
       disposition: this.discoveryDisposition,
@@ -562,6 +563,7 @@ export class AppComponent implements OnInit {
       }
       request.at = evaluatedAt.toISOString();
     }
+    this.scheduleResult.set(null);
     this.execute('Evaluate schedules', this.api.evaluateSchedules(request), (result) => this.scheduleResult.set(result), true);
   }
 
@@ -585,6 +587,7 @@ export class AppComponent implements OnInit {
     const sourceRoot = this.replaySourceRoot.trim();
     const runId = this.replayRunId.trim();
     if (!sourceRoot || !this.isDigest(runId)) return;
+    this.replayResult.set(null);
     this.execute('Reconcile original run', this.api.replay({
       sourceRoot,
       runId,
