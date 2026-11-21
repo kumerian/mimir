@@ -316,7 +316,16 @@ func activateParsed(
 	if len(expectedActive) == 1 {
 		expected = expectedActive[0]
 	}
-	if repository == nil {
+	if repository != nil {
+		if err := ensurePrivateDirectory(stateDir); err != nil {
+			return ActivationResult{}, domain.NewFailure(domain.FailureUnavailable, "metadata.repository.activate", "metadata repository directory is unavailable")
+		}
+		lock, err := acquireLock(stateDir)
+		if err != nil {
+			return ActivationResult{}, err
+		}
+		defer releaseLock(lock)
+	} else {
 		repository = fileMetadataRepository{stateDir: stateDir}
 	}
 	previousRevision, err := repository.Activate(ctx, activeBytes, expected)
