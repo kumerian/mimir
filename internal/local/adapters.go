@@ -16,7 +16,8 @@ const (
 )
 
 type fileSourceAdapter struct {
-	root string
+	root        string
+	allowedRoot string
 }
 
 func (a fileSourceAdapter) Capabilities() ports.SourceCapabilities {
@@ -30,7 +31,7 @@ func (a fileSourceAdapter) ReadBatch(ctx context.Context, relativePath string) (
 	if err := ctx.Err(); err != nil {
 		return nil, "", domain.ContextFailure("source.read", err)
 	}
-	path, err := safeSourcePath(a.root, relativePath)
+	path, err := safeSourcePath(a.root, relativePath, a.allowedRoot)
 	if err != nil {
 		return nil, "", err
 	}

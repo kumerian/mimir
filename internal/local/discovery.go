@@ -18,6 +18,7 @@ import (
 
 type DiscoveryOptions struct {
 	SourceRoot         string
+	AllowedSourceRoot  string
 	StateDir           string
 	Actor              string
 	AllowLocal         bool
@@ -71,7 +72,7 @@ func Discover(ctx context.Context, options DiscoveryOptions) (DiscoveryResult, e
 		return DiscoveryResult{}, domain.NewFailure(domain.FailureUnsupportedCapability, "discovery.plan", "local discovery requires exactly one source and one object")
 	}
 	source, object := parsed.Document.Sources[0], parsed.Document.Sources[0].Objects[0]
-	provider := jsonlDiscoveryProvider{root: options.SourceRoot}
+	provider := jsonlDiscoveryProvider{root: options.SourceRoot, allowedRoot: options.AllowedSourceRoot}
 	rawObservation, err := observeWithProvider(ctx, provider, object.Path)
 	if err != nil {
 		return DiscoveryResult{}, err

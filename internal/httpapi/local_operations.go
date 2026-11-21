@@ -123,7 +123,7 @@ func (o *LocalOperations) Discover(ctx context.Context, request DiscoveryRequest
 		disposition = "hold"
 	}
 	return local.Discover(ctx, local.DiscoveryOptions{
-		SourceRoot: request.SourceRoot, StateDir: o.stateDir, Actor: "local-user",
+		SourceRoot: request.SourceRoot, AllowedSourceRoot: o.sourceRoot, StateDir: o.stateDir, Actor: "local-user",
 		AllowLocal: o.allowLocal, Disposition: disposition,
 		MetadataRepository: o.repository, ProposalStore: o.proposals,
 	})
@@ -134,7 +134,7 @@ func (o *LocalOperations) Run(ctx context.Context, request RunRequest) (local.Re
 		return local.Result{}, err
 	}
 	return local.Run(ctx, local.Options{
-		SourceRoot: request.SourceRoot, StateDir: o.stateDir, Actor: "local-user", AllowLocal: o.allowLocal,
+		SourceRoot: request.SourceRoot, AllowedSourceRoot: o.sourceRoot, StateDir: o.stateDir, Actor: "local-user", AllowLocal: o.allowLocal,
 		MetadataRepository: o.repository,
 	})
 }
@@ -167,7 +167,7 @@ func (o *LocalOperations) Replay(ctx context.Context, request ReplayRequest) (lo
 		return local.ReplayResult{}, err
 	}
 	return local.Replay(ctx, local.Options{
-		SourceRoot: request.SourceRoot, StateDir: o.stateDir, Actor: "local-user", AllowLocal: o.allowLocal,
+		SourceRoot: request.SourceRoot, AllowedSourceRoot: o.sourceRoot, StateDir: o.stateDir, Actor: "local-user", AllowLocal: o.allowLocal,
 		MetadataRepository: o.repository,
 	}, request.RunID, request.Reason)
 }

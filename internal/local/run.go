@@ -31,6 +31,7 @@ const (
 
 type Options struct {
 	SourceRoot               string
+	AllowedSourceRoot        string
 	StateDir                 string
 	Actor                    string
 	AllowLocal               bool
@@ -180,7 +181,7 @@ func runWithHooks(ctx context.Context, options Options, fault, auditFailure func
 		}
 		return Result{}, domain.NewFailure(domain.FailureAccessDenied, "run.authorize", "explicit local-user authorization is required")
 	}
-	sourceAdapter := fileSourceAdapter{root: options.SourceRoot}
+	sourceAdapter := fileSourceAdapter{root: options.SourceRoot, allowedRoot: options.AllowedSourceRoot}
 	destinationAdapter := fileDestinationAdapter{path: filepath.Join(options.StateDir, "data", "destination.jsonl")}
 	sourceCapabilities := sourceAdapter.Capabilities()
 	destinationCapabilities := destinationAdapter.Capabilities()
@@ -520,7 +521,7 @@ func runWithHooks(ctx context.Context, options Options, fault, auditFailure func
 	return Result{RunID: runID, MetadataRevision: parsed.Document.Revision, RecordCount: len(records), AlreadyCommitted: alreadyCommitted}, nil
 }
 
-func safeSourcePath(root, relative string) (string, error) {
+func safeSourcePath(root, relative, allowedRoot string) (string, error) {
 	rootPath, err := filepath.Abs(root)
 	if err != nil {
 		return "", domain.MapAdapterFailure(domain.FailureInvalidInput, "source.open", "source root is invalid", err)
@@ -528,6 +529,20 @@ func safeSourcePath(root, relative string) (string, error) {
 	rootResolved, err := filepath.EvalSymlinks(rootPath)
 	if err != nil {
 		return "", domain.MapAdapterFailure(domain.FailureUnavailable, "source.open", "source root is unavailable", err)
+	}
+	if allowedRoot != "" {
+		allowedRootPath, err := filepath.Abs(allowedRoot)
+		if err != nil {
+			return "", domain.MapAdapterFailure(domain.FailureInvalidInput, "source.open", "allowed source root is invalid", err)
+		}
+		allowedRootResolved, err := filepath.EvalSymlinks(allowedRootPath)
+		if err != nil {
+			return "", domain.MapAdapterFailure(domain.FailureUnavailable, "source.open", "allowed source root is unavailable", err)
+		}
+		rel, err := filepath.Rel(allowedRootResolved, rootResolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return "", domain.NewFailure(domain.FailureAccessDenied, "source.open", "source root resolves outside the allowed source directory")
+		}
 	}
 	candidate := filepath.Join(rootResolved, filepath.FromSlash(relative))
 	resolved, err := filepath.EvalSymlinks(candidate)

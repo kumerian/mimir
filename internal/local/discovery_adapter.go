@@ -10,7 +10,8 @@ import (
 )
 
 type jsonlDiscoveryProvider struct {
-	root string
+	root        string
+	allowedRoot string
 }
 
 type observedSchema struct {
@@ -37,7 +38,7 @@ func (p jsonlDiscoveryProvider) Observe(ctx context.Context, relativePath string
 	if p.root == "" || relativePath == "" {
 		return nil, domain.NewFailure(domain.FailureInvalidInput, "discovery.observe", "source root and object path are required")
 	}
-	path, err := safeSourcePath(p.root, relativePath)
+	path, err := safeSourcePath(p.root, relativePath, p.allowedRoot)
 	if err != nil {
 		return nil, err
 	}
