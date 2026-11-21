@@ -92,14 +92,14 @@ export interface ReplayResult {
 }
 
 export interface CleaningRequest {
-  record: Record<string, unknown>;
+  record: string;
   classification: 'public' | 'internal';
   correction: {
     id: string;
     version: 'v1';
     operation: 'trim' | 'lowercase' | 'uppercase' | 'replace_null';
     field: string;
-    value?: unknown;
+    value?: string;
   };
 }
 
@@ -125,13 +125,17 @@ export class ApiService {
   private readonly headers = new HttpHeaders({
     'Mimir-Contract-Version': CONTRACT_VERSION,
   });
+  private readonly jsonHeaders = new HttpHeaders({
+    'Mimir-Contract-Version': CONTRACT_VERSION,
+    'Content-Type': 'application/json',
+  });
 
   health(): Observable<ProfileHealth> {
     return this.http.get<ProfileHealth>('/api/v1/health', { headers: this.headers });
   }
 
-  validate(metadata: unknown): Observable<ValidationReport> {
-    return this.http.post<ValidationReport>('/api/v1/metadata/validate', metadata, { headers: this.headers });
+  validate(metadata: string): Observable<ValidationReport> {
+    return this.http.post<ValidationReport>('/api/v1/metadata/validate', metadata, { headers: this.jsonHeaders });
   }
 
   validationReport(digest: string): Observable<ValidationReport> {
@@ -144,8 +148,8 @@ export class ApiService {
     return this.http.get<RevisionSummary[]>('/api/v1/metadata/revisions', { headers: this.headers });
   }
 
-  author(metadata: unknown): Observable<RevisionSummary> {
-    return this.http.post<RevisionSummary>('/api/v1/metadata/revisions', metadata, { headers: this.headers });
+  author(metadata: string): Observable<RevisionSummary> {
+    return this.http.post<RevisionSummary>('/api/v1/metadata/revisions', metadata, { headers: this.jsonHeaders });
   }
 
   activate(request: { revision: string; expectedActive?: string }): Observable<ActivationResult> {
@@ -177,10 +181,23 @@ export class ApiService {
   }
 
   previewCleaning(request: CleaningRequest): Observable<CleaningResult> {
-    return this.http.post<CleaningResult>('/api/v1/cleaning/preview', request, { headers: this.headers });
+    return this.http.post<CleaningResult>('/api/v1/cleaning/preview', this.cleaningBody(request), { headers: this.jsonHeaders });
   }
 
   applyCleaning(request: CleaningRequest): Observable<CleaningResult> {
-    return this.http.post<CleaningResult>('/api/v1/cleaning/apply', request, { headers: this.headers });
+    return this.http.post<CleaningResult>('/api/v1/cleaning/apply', this.cleaningBody(request), { headers: this.jsonHeaders });
+  }
+
+  private cleaningBody(request: CleaningRequest): string {
+    const correctionFields = [
+      `"id":${JSON.stringify(request.correction.id)}`,
+      `"version":${JSON.stringify(request.correction.version)}`,
+      `"operation":${JSON.stringify(request.correction.operation)}`,
+      `"field":${JSON.stringify(request.correction.field)}`,
+    ];
+    if (request.correction.value !== undefined) {
+      correctionFields.push(`"value":${request.correction.value}`);
+    }
+    return `{"record":${request.record},"classification":${JSON.stringify(request.classification)},"correction":{${correctionFields.join(',')}}}`;
   }
 }

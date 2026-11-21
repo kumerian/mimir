@@ -36,9 +36,34 @@ describe('ApiService', () => {
     });
   });
 
+  it('sends metadata JSON unchanged with an application/json content type', () => {
+    const metadata = '{"name":"Example","name":"Duplicate"}';
+    api.validate(metadata).subscribe();
+    const validate = http.expectOne('/api/v1/metadata/validate');
+    expect(validate.request.method).toBe('POST');
+    expect(validate.request.headers.get('Content-Type')).toBe('application/json');
+    expect(validate.request.body).toBe(metadata);
+    validate.flush({
+      contractVersion: 'mimir.metadata-validation/v1',
+      inputDigest: 'a'.repeat(64),
+      valid: false,
+      runEligible: false,
+      securityImpact: 'input_not_retained',
+      compatibilityDecision: 'rejected_v1',
+      diagnostics: [],
+    });
+
+    api.author(metadata).subscribe();
+    const author = http.expectOne('/api/v1/metadata/revisions');
+    expect(author.request.method).toBe('POST');
+    expect(author.request.headers.get('Content-Type')).toBe('application/json');
+    expect(author.request.body).toBe(metadata);
+    author.flush({ revision: 'draft-v1', status: 'draft', digest: 'a'.repeat(64) });
+  });
+
   it('uses separate preview and apply cleaning endpoints', () => {
     const request: CleaningRequest = {
-      record: { name: '  Example  ' },
+      record: '{"name":"  Example  "}',
       classification: 'internal',
       correction: {
         id: 'trim-name',
@@ -49,10 +74,15 @@ describe('ApiService', () => {
     };
 
     api.previewCleaning(request).subscribe();
-    http.expectOne({
+    const preview = http.expectOne({
       method: 'POST',
       url: '/api/v1/cleaning/preview',
-    }).flush({
+    });
+    expect(preview.request.headers.get('Content-Type')).toBe('application/json');
+    expect(preview.request.body).toBe(
+      '{"record":{"name":"  Example  "},"classification":"internal","correction":{"id":"trim-name","version":"v1","operation":"trim","field":"name"}}',
+    );
+    preview.flush({
       record: { name: 'Example' },
       classification: 'internal',
       audit: {
@@ -69,10 +99,15 @@ describe('ApiService', () => {
     });
 
     api.applyCleaning(request).subscribe();
-    http.expectOne({
+    const applied = http.expectOne({
       method: 'POST',
       url: '/api/v1/cleaning/apply',
-    }).flush({
+    });
+    expect(applied.request.headers.get('Content-Type')).toBe('application/json');
+    expect(applied.request.body).toBe(
+      '{"record":{"name":"  Example  "},"classification":"internal","correction":{"id":"trim-name","version":"v1","operation":"trim","field":"name"}}',
+    );
+    applied.flush({
       record: { name: 'Example' },
       classification: 'internal',
       audit: {

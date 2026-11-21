@@ -477,10 +477,9 @@ export class AppComponent implements OnInit {
 
   validateMetadata(): void {
     const submittedText = this.metadataText;
-    const metadata = this.parseJson(submittedText);
-    if (metadata === undefined) return;
+    if (this.parseJson(submittedText) === undefined) return;
     this.lastValidatedText = null;
-    this.execute('Validate metadata', this.api.validate(metadata), (report) => {
+    this.execute('Validate metadata', this.api.validate(submittedText), (report) => {
       this.report.set(report);
       this.lastValidatedText = submittedText;
       this.authoredRevision.set(null);
@@ -497,9 +496,7 @@ export class AppComponent implements OnInit {
 
   authorMetadata(): void {
     if (!this.canAuthor()) return;
-    const metadata = this.parseJson(this.metadataText);
-    if (metadata === undefined) return;
-    this.execute('Author metadata', this.api.author(metadata), (summary) => {
+    this.execute('Author metadata', this.api.author(this.metadataText), (summary) => {
       this.authoredRevision.set(summary);
       this.revisions.update((items) => [
         ...items.filter((item) => item.revision !== summary.revision || item.status !== summary.status),
@@ -702,7 +699,7 @@ export class AppComponent implements OnInit {
       return null;
     }
     const request: CleaningRequest = {
-      record,
+      record: this.cleaningRecordText,
       classification: this.cleaningClassification,
       correction: {
         id: this.correctionId.trim(),
@@ -714,7 +711,7 @@ export class AppComponent implements OnInit {
     if (this.cleaningOperation === 'replace_null') {
       const value = this.parseJson(this.replacementValueText);
       if (value === undefined) return null;
-      request.correction.value = value;
+      request.correction.value = this.replacementValueText;
     }
     return request;
   }

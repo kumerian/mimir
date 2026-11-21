@@ -107,7 +107,7 @@ describe('AppComponent local-operation safeguards', () => {
       alreadyApplied: false,
     });
     const expectedRequest = {
-      record: { name: '  Example  ' },
+      record: '{"name":"  Example  "}',
       classification: 'internal',
       correction: {
         id: 'trim-name',
