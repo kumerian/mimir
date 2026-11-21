@@ -435,6 +435,7 @@ export class AppComponent implements OnInit {
 
   private lastValidatedText: string | null = null;
   private previewRequestKey: string | null = null;
+  private cleaningRequestGeneration = 0;
 
   ngOnInit(): void {
     this.loadHealth();
@@ -598,10 +599,12 @@ export class AppComponent implements OnInit {
   previewCleaning(): void {
     const request = this.cleaningRequest();
     if (!request) return;
+    const generation = ++this.cleaningRequestGeneration;
     this.cleaningResult.set(null);
     this.previewRequestKey = null;
     this.applyConfirmed = false;
     this.execute('Preview cleaning', this.api.previewCleaning(request), (result) => {
+      if (generation !== this.cleaningRequestGeneration) return;
       this.cleaningResult.set(result);
       if (result.preview) this.previewRequestKey = this.pretty(request);
     });
@@ -624,20 +627,20 @@ export class AppComponent implements OnInit {
     if (!this.canApplyCleaning()) return;
     const request = this.cleaningRequest();
     if (!request) return;
+    const generation = this.cleaningRequestGeneration;
     this.execute('Apply cleaning', this.api.applyCleaning(request), (result) => {
+      if (generation !== this.cleaningRequestGeneration) return;
       this.cleaningResult.set(result);
       this.applyConfirmed = false;
     }, true);
   }
 
   clearCleaning(): void {
+    this.invalidateCleaningPreview();
     this.cleaningRecordText = '';
     this.replacementValueText = '';
     this.correctionId = '';
     this.cleaningField = '';
-    this.cleaningResult.set(null);
-    this.previewRequestKey = null;
-    this.applyConfirmed = false;
   }
 
   updateCleaningRecord(event: Event): void {
@@ -719,6 +722,7 @@ export class AppComponent implements OnInit {
   }
 
   private invalidateCleaningPreview(): void {
+    this.cleaningRequestGeneration++;
     this.cleaningResult.set(null);
     this.previewRequestKey = null;
     this.applyConfirmed = false;

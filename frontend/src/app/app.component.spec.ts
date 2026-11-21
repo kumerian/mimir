@@ -1,15 +1,17 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppComponent } from './app.component';
-import { ApiService } from './api.service';
+import { ApiService, CleaningResult } from './api.service';
 
 describe('AppComponent local-operation safeguards', () => {
   let component: AppComponent;
   let api: {
     health: ReturnType<typeof vi.fn>;
     activate: ReturnType<typeof vi.fn>;
+    previewCleaning: ReturnType<typeof vi.fn>;
+    applyCleaning: ReturnType<typeof vi.fn>;
   };
 
   afterEach(() => TestBed.resetTestingModule());
@@ -29,6 +31,8 @@ describe('AppComponent local-operation safeguards', () => {
         status: 'active',
         digest: 'b'.repeat(64),
       })),
+      previewCleaning: vi.fn(),
+      applyCleaning: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -149,6 +153,87 @@ describe('AppComponent local-operation safeguards', () => {
     component.cleaningOperation = 'replace_null';
     component.replacementValueText = '9007199254740993';
     expect(access.cleaningRequest()).toBeNull();
+  });
+
+  it('ignores stale cleaning responses after inputs are edited or cleared', () => {
+    const previewResponse = new Subject<CleaningResult>();
+    api.previewCleaning.mockReturnValue(previewResponse);
+    component.correctionId = 'trim-name';
+    component.cleaningField = 'name';
+    component.cleaningRecordText = '{"name":"  Example  "}';
+
+    component.previewCleaning();
+    component.updateCleaningRecord({
+      target: { value: '{"name":"changed"}' },
+    } as unknown as Event);
+    previewResponse.next({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: true,
+      alreadyApplied: false,
+    });
+    expect(component.cleaningResult()).toBeNull();
+
+    const applyResponse = new Subject<CleaningResult>();
+    api.applyCleaning.mockReturnValue(applyResponse);
+    component.cleaningRecordText = '{"name":"  Example  "}';
+    component.cleaningResult.set({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: true,
+      alreadyApplied: false,
+    });
+    component.applyConfirmed = true;
+    const access = component as unknown as {
+      previewRequestKey: string;
+      pretty(value: unknown): string;
+    };
+    access.previewRequestKey = access.pretty({
+      record: '{"name":"  Example  "}',
+      classification: 'internal',
+      correction: {
+        id: 'trim-name',
+        version: 'v1',
+        operation: 'trim',
+        field: 'name',
+      },
+    });
+    component.applyCleaning();
+    component.clearCleaning();
+    applyResponse.next({
+      record: { name: 'Example' },
+      classification: 'internal',
+      audit: {
+        correctionId: 'trim-name',
+        correctionVersion: 'v1',
+        actor: 'local-user',
+        inputReference: 'test',
+        outputDigest: 'test',
+        idempotencyKey: 'test',
+        occurredAt: '2026-01-01T00:00:00Z',
+      },
+      preview: false,
+      alreadyApplied: false,
+    });
+    expect(component.cleaningResult()).toBeNull();
   });
 
   it('marks unrecognized mutating failures as unknown outcomes', () => {
