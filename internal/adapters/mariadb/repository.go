@@ -145,6 +145,18 @@ func (s *Store) Activate(ctx context.Context, raw json.RawMessage, expectedActiv
 	if err != nil {
 		return "", databaseFailure("metadata.repository.activate", err)
 	}
+	if previousRevision == parsed.Document.Revision && previousDigest == digest {
+		var committedPrevious string
+		err := tx.QueryRowContext(ctx, `SELECT previous_revision_id FROM metadata_activation_history
+			WHERE revision_id = ? AND metadata_digest = ? ORDER BY id DESC LIMIT 1`,
+			parsed.Document.Revision, digest).Scan(&committedPrevious)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", databaseFailure("metadata.repository.activate", err)
+		}
+		if err == nil && committedPrevious == expectedActive {
+			return committedPrevious, nil
+		}
+	}
 	if previousRevision != "" && previousRevision != parsed.Document.Revision && expectedActive == "" {
 		return "", domain.NewFailure(domain.FailureInvalidInput, "metadata.repository.activate", "expected active revision is required when superseding an active revision")
 	}
