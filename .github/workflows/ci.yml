@@ -113,6 +113,7 @@ jobs:
           cp -R frontend/dist/mimir/browser dist/gui
       - name: Record candidate identity
         run: |
+          python3 scripts/required_check.py gui-candidate-identity-tests -- python3 scripts/test_gui_candidate_identity.py
           python3 scripts/required_check.py candidate-identity -- python3 scripts/gui_candidate_identity.py \
             --binary dist/mimir-candidate --frontend-dist dist/gui --output dist/gui-candidate-identity.json --require-clean
           sha256sum dist/gui-candidate-identity.json >> dist/SHA256SUMS
