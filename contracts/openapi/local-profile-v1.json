@@ -31,7 +31,7 @@
         "summary": "Validate an inline metadata v1 document",
         "description": "Accepts at most 1 MiB of inline JSON. The existing validation use case persists a content-free report under the fixed state directory; invalid metadata is returned as a report with valid=false, not as an HTTP error.",
         "parameters": [{"$ref": "#/components/parameters/ContractVersion"}, {"$ref": "#/components/parameters/CorrelationId"}, {"$ref": "#/components/parameters/SameOrigin"}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "../metadata/v1.schema.json"}}}},
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {}}}},
         "responses": {
           "200": {"description": "Validation report; never run-eligible", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ValidationReport"}}}},
           "default": {"$ref": "#/components/responses/Failure"}
