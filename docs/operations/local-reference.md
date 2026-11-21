@@ -118,13 +118,19 @@ production.
 The local Compose profile is defined in `docker-compose.yml` and has exactly
 three runtime services: `frontend` (Angular served by Nginx), `backend` (Go),
 and `mariadb`. Start it from the repository root after setting three distinct
-random hexadecimal passwords in the ignored `.env` file; `.env.example` is a
-variable-name template, not usable credentials. MariaDB creates a
+random hexadecimal passwords of at least 32 characters each in the ignored
+`.env` file; `.env.example` is a variable-name template, not usable
+credentials. MariaDB creates a
 `mimir_runtime` account limited to `SELECT`, `INSERT`, and `UPDATE` on the
 `metadata` schema and a separate `mimir_migrator` account used only by backend
 startup migrations. Ordinary API operations use the runtime credential.
 Never commit `.env`, print credentials, or place credentials in requests,
 logs, or source metadata.
+
+The container shell scripts require LF line endings. Git attributes enforce
+this for new checkouts; an existing Windows checkout with CRLF scripts must
+convert `deploy/mariadb/entrypoint.sh`, `deploy/mariadb/01-create-users.sh`,
+and `deploy/backend/entrypoint.sh` to LF before starting or rebuilding.
 
 The frontend is published only on `127.0.0.1:8080` by default. Nginx forwards
 `/api/` to the backend and preserves the browser `Host` and `Origin`; neither

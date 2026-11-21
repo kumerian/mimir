@@ -16,7 +16,7 @@ interface ProfileHealth {
     <main class="shell">
       <header class="topbar">
         <a class="brand" href="/" aria-label="Mimir home">
-          <span class="brand-mark" aria-hidden="true">M</span>
+          <img src="mimir_logo_32x32.png" width="32" height="32" alt="">
           <span>Mimir</span>
         </a>
         <span class="local-badge"><span aria-hidden="true"></span> Local workspace</span>

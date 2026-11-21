@@ -75,11 +75,15 @@ Create local-only credentials, then start the services:
 printf 'MARIADB_ROOT_PASSWORD=%s\nMIMIR_DB_RUNTIME_PASSWORD=%s\nMIMIR_DB_MIGRATION_PASSWORD=%s\n' \
   "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
 chmod 600 .env
-docker compose up --build -d
+make run
 ```
 
-Use Docker Compose v2. Open `http://127.0.0.1:8080`; add permitted local
-JSONL sources under `data/sources`. The backend accepts source roots only
+With Docker Compose v2, `make run` builds and starts the services, waits for
+them to become healthy, and opens the frontend in the default browser. It
+requires GNU Make and Python 3.12 on Windows (or Python 3 on other platforms).
+If the browser cannot be opened, use the displayed URL manually. The default
+URL is `http://127.0.0.1:8080`; `MIMIR_HTTP_PORT` can change the host port.
+Add permitted local JSONL sources under `data/sources`. The backend accepts source roots only
 within that read-only mount. To stop without deleting persistent data, run
 `docker compose down`; `docker compose down --volumes` permanently deletes
 both named volumes. See the [container operations guide](docs/operations/local-reference.md#three-container-profile)

@@ -15,6 +15,12 @@
           },
           "defaultConfiguration": "production",
           "options": {
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
             "browser": "src/main.ts",
             "index": "src/index.html",
             "outputPath": "dist/mimir",

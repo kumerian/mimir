@@ -11,10 +11,11 @@ endif
 GO ?= $(shell $(PYTHON) scripts/setup_dev.py --print-command)
 GOFMT ?= $(shell $(PYTHON) scripts/setup_dev.py --print-gofmt)
 
-.PHONY: help test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
+.PHONY: help run test test-race contract integration lint security build package install-smoke generate-metadata-schema docs clean
 
 help:
 	@echo Available targets:
+	@echo   run                     Start the local stack and open the frontend
 	@echo   test                    Run repository checks and Go tests
 	@echo   test-race               Run Go tests with the race detector
 	@echo   contract                Run Go contract tests
@@ -27,6 +28,10 @@ help:
 	@echo   generate-metadata-schema Generate the metadata schema
 	@echo   docs                    Validate documentation and contracts
 	@echo   clean                   Remove build artifacts
+
+run:
+	docker compose up --build --wait
+	$(PYTHON) -c "import subprocess, sys, webbrowser; address = subprocess.check_output(['docker', 'compose', 'port', 'frontend', '80'], text=True).strip(); address or sys.exit('Could not determine frontend address'); url = 'http://' + address; print('Opening ' + url, flush=True); webbrowser.open(url) or sys.exit('Could not open browser; open ' + url + ' manually')"
 
 test:
 	$(PYTHON) scripts/check_tasks.py
