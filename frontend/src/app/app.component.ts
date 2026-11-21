@@ -497,6 +497,7 @@ export class AppComponent implements OnInit {
 
   authorMetadata(): void {
     if (!this.canAuthor()) return;
+    this.authoredRevision.set(null);
     this.execute('Author metadata', this.api.author(this.metadataText), (summary) => {
       this.authoredRevision.set(summary);
       this.revisions.update((items) => [
@@ -528,6 +529,7 @@ export class AppComponent implements OnInit {
 
   activateMetadata(): void {
     if (!this.canActivate()) return;
+    this.activationResult.set(null);
     const request: { revision: string; expectedActive?: string } = {
       revision: this.activationRevision.trim(),
     };
@@ -551,6 +553,7 @@ export class AppComponent implements OnInit {
   runIngestion(): void {
     const sourceRoot = this.runSourceRoot.trim();
     if (!sourceRoot) return;
+    this.runResult.set(null);
     this.execute('Run ingestion', this.api.run({ sourceRoot }), (result) => this.runResult.set(result), true);
   }
 
@@ -569,6 +572,7 @@ export class AppComponent implements OnInit {
   }
 
   stopScheduleRequests(): void {
+    this.stopResult.set(null);
     this.execute('Stop pending schedule requests', this.api.stopScheduleRequests(this.stopReason), (result) => {
       this.stopResult.set(result);
       this.scheduleResult.set(null);

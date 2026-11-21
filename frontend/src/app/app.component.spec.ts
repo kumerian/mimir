@@ -12,6 +12,9 @@ describe('AppComponent local-operation safeguards', () => {
     activate: ReturnType<typeof vi.fn>;
     previewCleaning: ReturnType<typeof vi.fn>;
     applyCleaning: ReturnType<typeof vi.fn>;
+    author: ReturnType<typeof vi.fn>;
+    run: ReturnType<typeof vi.fn>;
+    stopScheduleRequests: ReturnType<typeof vi.fn>;
   };
 
   afterEach(() => TestBed.resetTestingModule());
@@ -33,6 +36,23 @@ describe('AppComponent local-operation safeguards', () => {
       })),
       previewCleaning: vi.fn(),
       applyCleaning: vi.fn(),
+      author: vi.fn(() => of({
+        revision: 'draft-v2',
+        status: 'draft',
+        digest: 'b'.repeat(64),
+      })),
+      run: vi.fn(() => of({
+        contractVersion: 'mimir.run/v1',
+        runId: 'a'.repeat(64),
+        sourceRoot: '/tmp/orders',
+        status: 'committed',
+        committedRows: 1,
+        rejectedRows: 0,
+      })),
+      stopScheduleRequests: vi.fn(() => of({
+        contractVersion: 'mimir.stop-schedule-requests/v1',
+        stoppedRequests: 0,
+      })),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -234,6 +254,76 @@ describe('AppComponent local-operation safeguards', () => {
       alreadyApplied: false,
     });
     expect(component.cleaningResult()).toBeNull();
+  });
+
+  it('clears prior mutating and ingestion results before new attempts', () => {
+    const runResponse = new Subject<{ runId: string; metadataRevision: string; recordCount: number; alreadyCommitted: boolean }>();
+    api.run.mockReturnValue(runResponse);
+    component.runResult.set({
+      runId: 'a'.repeat(64),
+      metadataRevision: 'active-v1',
+      recordCount: 10,
+      alreadyCommitted: false,
+    });
+    component.runSourceRoot = '/tmp/orders';
+    component.runIngestion();
+    expect(component.runResult()).toBeNull();
+    runResponse.next({
+      runId: 'a'.repeat(64),
+      metadataRevision: 'active-v1',
+      recordCount: 10,
+      alreadyCommitted: false,
+    });
+    runResponse.complete();
+
+    const authorResponse = new Subject<{ revision: string; status: string; digest: string }>();
+    api.author.mockReturnValue(authorResponse);
+    component.authoredRevision.set({
+      revision: 'draft-v1',
+      status: 'draft',
+      digest: 'a'.repeat(64),
+    });
+    component.report.set({
+      contractVersion: 'mimir.metadata-validation/v1',
+      inputDigest: 'a'.repeat(64),
+      valid: true,
+      runEligible: false,
+      securityImpact: 'input_not_retained',
+      compatibilityDecision: 'accepted_v1',
+      diagnostics: [],
+    });
+    (component as unknown as { lastValidatedText: string }).lastValidatedText = component.metadataText;
+    component.authorMetadata();
+    expect(component.authoredRevision()).toBeNull();
+    authorResponse.next({
+      revision: 'draft-v2',
+      status: 'draft',
+      digest: 'b'.repeat(64),
+    });
+    authorResponse.complete();
+
+    const activateResponse = new Subject<{ revision: string; status: string; digest: string }>();
+    api.activate.mockReturnValue(activateResponse);
+    component.activationResult.set({
+      revision: 'draft-v1',
+      status: 'active',
+      digest: 'a'.repeat(64),
+    });
+    component.activationRevision = 'draft-v1';
+    component.activateMetadata();
+    expect(component.activationResult()).toBeNull();
+    activateResponse.next({
+      revision: 'draft-v1',
+      status: 'active',
+      digest: 'a'.repeat(64),
+    });
+    activateResponse.complete();
+
+    const stopResponse = new Subject<{ status: string }>();
+    api.stopScheduleRequests.mockReturnValue(stopResponse);
+    component.stopResult.set({ status: 'stopped' });
+    component.stopScheduleRequests();
+    expect(component.stopResult()).toBeNull();
   });
 
   it('marks unrecognized mutating failures as unknown outcomes', () => {
