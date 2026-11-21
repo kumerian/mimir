@@ -109,11 +109,31 @@ func AuthorBytesWithStores(
 	if parsed.Document.Status != "draft" {
 		return RevisionSummary{}, domain.NewFailure(domain.FailureInvalidInput, "metadata.author", "only valid draft metadata can be authored")
 	}
+	needsAudit := repository != nil
 	if repository == nil {
 		repository = fileMetadataRepository{stateDir: stateDir}
+	} else {
+		if err := ensurePrivateDirectory(stateDir); err != nil {
+			return RevisionSummary{}, domain.NewFailure(domain.FailureUnavailable, "metadata.repository.append", "metadata repository directory is unavailable")
+		}
+		lock, err := acquireLock(stateDir)
+		if err != nil {
+			return RevisionSummary{}, err
+		}
+		defer releaseLock(lock)
 	}
 	if err := repository.AppendDraft(ctx, parsed.Canonical, actor); err != nil {
 		return RevisionSummary{}, err
+	}
+	if needsAudit {
+		event := auditEvent{
+			EventID:   digest([]byte("metadata.authored\x00" + parsed.Document.Revision + "\x00" + digest(parsed.Canonical))),
+			Operation: "metadata.authored", Actor: actor, MetadataRevision: parsed.Document.Revision,
+			OccurredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		}
+		if err := ensureAudit(filepath.Join(stateDir, "audit", "events.jsonl"), event); err != nil {
+			return RevisionSummary{}, domain.NewFailure(domain.FailureUnavailable, "audit.append", "draft is stored but its audit event is pending; retry authoring")
+		}
 	}
 	return RevisionSummary{Revision: parsed.Document.Revision, Status: parsed.Document.Status, Digest: digest(parsed.Canonical)}, nil
 }
