@@ -195,7 +195,7 @@ const INITIAL_METADATA = `{
                 <table>
                   <thead><tr><th>Revision</th><th>Status</th><th>Digest</th></tr></thead>
                   <tbody>
-                    @for (revision of revisions(); track revision.revision) {
+                    @for (revision of revisions(); track revision.revision + ':' + revision.status) {
                       <tr><td><code>{{ revision.revision }}</code></td><td><span class="pill">{{ revision.status }}</span></td><td class="table-digest"><code>{{ revision.digest }}</code></td></tr>
                     }
                   </tbody>
