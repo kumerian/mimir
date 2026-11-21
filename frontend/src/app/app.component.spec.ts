@@ -123,4 +123,18 @@ describe('AppComponent local-operation safeguards', () => {
     access.previewRequestKey = access.pretty(expectedRequest);
     expect(component.canApplyCleaning()).toBe(true);
   });
+
+  it('rejects cleaning JSON with integers outside the safe range', () => {
+    component.correctionId = 'trim-id';
+    component.cleaningField = 'id';
+    component.cleaningRecordText = '{"id":9007199254740993}';
+    component.cleaningOperation = 'trim';
+    const access = component as unknown as { cleaningRequest(): unknown };
+    expect(access.cleaningRequest()).toBeNull();
+
+    component.cleaningRecordText = '{"id":null}';
+    component.cleaningOperation = 'replace_null';
+    component.replacementValueText = '9007199254740993';
+    expect(access.cleaningRequest()).toBeNull();
+  });
 });

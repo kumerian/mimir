@@ -13,6 +13,7 @@ import {
   ScheduleResult,
   StopResult,
   ValidationReport,
+  hasUnsafeJsonInteger,
 } from './api.service';
 
 type View = 'metadata' | 'runs' | 'cleaning';
@@ -692,6 +693,10 @@ export class AppComponent implements OnInit {
   }
 
   private cleaningRequest(): CleaningRequest | null {
+    if (hasUnsafeJsonInteger(this.cleaningRecordText)) {
+      this.localError('invalid_input', 'The cleaning record contains an integer outside the safely representable range.');
+      return null;
+    }
     const record = this.parseJson(this.cleaningRecordText);
     if (record === undefined) return null;
     if (!this.isJsonObject(record)) {
@@ -709,6 +714,10 @@ export class AppComponent implements OnInit {
       },
     };
     if (this.cleaningOperation === 'replace_null') {
+      if (hasUnsafeJsonInteger(this.replacementValueText)) {
+        this.localError('invalid_input', 'The replacement value contains an integer outside the safely representable range.');
+        return null;
+      }
       const value = this.parseJson(this.replacementValueText);
       if (value === undefined) return null;
       request.correction.value = this.replacementValueText;

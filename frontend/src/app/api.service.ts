@@ -1,6 +1,6 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 const CONTRACT_VERSION = 'mimir.gui-api/v1';
 
@@ -103,6 +103,48 @@ export interface CleaningRequest {
   };
 }
 
+export function hasUnsafeJsonInteger(value: string): boolean {
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < value.length;) {
+    const char = value[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      i++;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      i++;
+      continue;
+    }
+    if (char !== '-' && (char < '0' || char > '9')) {
+      i++;
+      continue;
+    }
+    const start = i;
+    if (char === '-') i++;
+    while (i < value.length && value[i] >= '0' && value[i] <= '9') i++;
+    if (value[i] === '.') {
+      i++;
+      while (i < value.length && value[i] >= '0' && value[i] <= '9') i++;
+    }
+    if (value[i] === 'e' || value[i] === 'E') {
+      i++;
+      if (value[i] === '+' || value[i] === '-') i++;
+      while (i < value.length && value[i] >= '0' && value[i] <= '9') i++;
+    }
+    const token = value.slice(start, i);
+    if (token.length > 0) {
+      const number = Number(token);
+      if (Number.isInteger(number) && !Number.isSafeInteger(number)) return true;
+    }
+  }
+  return false;
+}
+
 export interface CleaningResult {
   record: Record<string, unknown>;
   classification: 'public' | 'internal';
@@ -181,11 +223,24 @@ export class ApiService {
   }
 
   previewCleaning(request: CleaningRequest): Observable<CleaningResult> {
-    return this.http.post<CleaningResult>('/api/v1/cleaning/preview', this.cleaningBody(request), { headers: this.jsonHeaders });
+    return this.http.post('/api/v1/cleaning/preview', this.cleaningBody(request), {
+      headers: this.jsonHeaders,
+      responseType: 'text',
+    }).pipe(map((body) => this.cleaningResult(body)));
   }
 
   applyCleaning(request: CleaningRequest): Observable<CleaningResult> {
-    return this.http.post<CleaningResult>('/api/v1/cleaning/apply', this.cleaningBody(request), { headers: this.jsonHeaders });
+    return this.http.post('/api/v1/cleaning/apply', this.cleaningBody(request), {
+      headers: this.jsonHeaders,
+      responseType: 'text',
+    }).pipe(map((body) => this.cleaningResult(body)));
+  }
+
+  private cleaningResult(body: string): CleaningResult {
+    if (hasUnsafeJsonInteger(body)) {
+      throw new Error('A cleaning response contained an integer outside the safely representable range.');
+    }
+    return JSON.parse(body) as CleaningResult;
   }
 
   private cleaningBody(request: CleaningRequest): string {

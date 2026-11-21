@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ApiService, CleaningRequest } from './api.service';
+import { ApiService, CleaningRequest, hasUnsafeJsonInteger } from './api.service';
 
 describe('ApiService', () => {
   let api: ApiService;
@@ -59,6 +59,11 @@ describe('ApiService', () => {
     expect(author.request.headers.get('Content-Type')).toBe('application/json');
     expect(author.request.body).toBe(metadata);
     author.flush({ revision: 'draft-v1', status: 'draft', digest: 'a'.repeat(64) });
+  });
+
+  it('detects unsafe JSON integers outside strings', () => {
+    expect(hasUnsafeJsonInteger('{"id":9007199254740993}')).toBe(true);
+    expect(hasUnsafeJsonInteger('{"id":"9007199254740993"}')).toBe(false);
   });
 
   it('uses separate preview and apply cleaning endpoints', () => {
