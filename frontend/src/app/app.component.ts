@@ -209,10 +209,8 @@ const INITIAL_METADATA = `{
             </div>
             <label for="activate-revision">Draft revision ID</label>
             <input id="activate-revision" type="text" maxlength="128" [value]="activationRevision" (input)="activationRevision = valueOf($event)">
-            @if (requiresExpectedActive()) {
-              <label for="expected-active">Expected current active revision <span class="required-note">required to replace active metadata</span></label>
-              <input id="expected-active" type="text" maxlength="128" [value]="expectedActiveRevision" (input)="expectedActiveRevision = valueOf($event)" [placeholder]="activeRevision() ?? ''">
-            }
+            <label for="expected-active">Expected current active revision <span class="required-note">optional, for replacing active metadata</span></label>
+            <input id="expected-active" type="text" maxlength="128" [value]="expectedActiveRevision" (input)="expectedActiveRevision = valueOf($event)" placeholder="Operator-supplied active revision">
             <button type="button" class="activation-button" [disabled]="!canActivate() || isBusy()" (click)="activateMetadata()">Activate selected draft</button>
             @if (activationResult(); as activated) {
               <p class="success-note" role="status">Active revision: <code>{{ activated.revision }}</code> · {{ activated.status }} · {{ activated.digest }}</p>
@@ -523,18 +521,8 @@ export class AppComponent implements OnInit {
     this.execute('List metadata revisions', this.api.revisions(), (items) => this.revisions.set(items));
   }
 
-  activeRevision(): string | null {
-    return this.revisions().find((item) => item.status.toLowerCase() === 'active')?.revision ?? null;
-  }
-
-  requiresExpectedActive(): boolean {
-    const active = this.activeRevision();
-    return active !== null && this.activationRevision.trim() !== active;
-  }
-
   canActivate(): boolean {
-    return this.activationRevision.trim().length > 0
-      && (!this.requiresExpectedActive() || this.expectedActiveRevision.trim().length > 0);
+    return this.activationRevision.trim().length > 0;
   }
 
   activateMetadata(): void {
@@ -542,7 +530,8 @@ export class AppComponent implements OnInit {
     const request: { revision: string; expectedActive?: string } = {
       revision: this.activationRevision.trim(),
     };
-    if (this.requiresExpectedActive()) request.expectedActive = this.expectedActiveRevision.trim();
+    const expectedActive = this.expectedActiveRevision.trim();
+    if (expectedActive) request.expectedActive = expectedActive;
     this.execute('Activate metadata', this.api.activate(request), (result) => {
       this.activationResult.set(result);
     }, true);

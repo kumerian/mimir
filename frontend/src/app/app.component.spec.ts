@@ -7,18 +7,27 @@ import { ApiService } from './api.service';
 
 describe('AppComponent local-operation safeguards', () => {
   let component: AppComponent;
+  let api: {
+    health: ReturnType<typeof vi.fn>;
+    activate: ReturnType<typeof vi.fn>;
+  };
 
   afterEach(() => TestBed.resetTestingModule());
 
   beforeEach(() => {
     TestBed.resetTestingModule();
-    const api = {
+    api = {
       health: vi.fn(() => of({
         status: 'ready',
         version: 'test',
         commit: 'test',
         contracts: ['mimir.gui-api/v1'],
         profile: 'local-reference-v1',
+      })),
+      activate: vi.fn(() => of({
+        revision: 'draft-v2',
+        status: 'active',
+        digest: 'b'.repeat(64),
       })),
     };
     TestBed.configureTestingModule({
@@ -48,16 +57,20 @@ describe('AppComponent local-operation safeguards', () => {
     expect(component.canAuthor()).toBe(true);
   });
 
-  it('requires expected active revision before replacing an active revision', () => {
+  it('allows activation with an optional operator-supplied expected active revision', () => {
     component.revisions.set([
       { revision: 'active-v1', status: 'active', digest: 'a'.repeat(64) },
       { revision: 'draft-v2', status: 'draft', digest: 'b'.repeat(64) },
     ]);
     component.activationRevision = 'draft-v2';
-    expect(component.requiresExpectedActive()).toBe(true);
-    expect(component.canActivate()).toBe(false);
+    expect(component.canActivate()).toBe(true);
     component.expectedActiveRevision = 'active-v1';
     expect(component.canActivate()).toBe(true);
+    component.activateMetadata();
+    expect(api.activate).toHaveBeenCalledWith({
+      revision: 'draft-v2',
+      expectedActive: 'active-v1',
+    });
   });
 
   it('does not expose schedule evaluation as dispatch', () => {
