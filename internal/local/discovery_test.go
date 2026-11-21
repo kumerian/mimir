@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,6 +11,52 @@ import (
 
 	"github.com/kumerian/mimir/internal/domain"
 )
+
+func TestDiscoverEmptyObjectPersistsArrayColumns(t *testing.T) {
+	_, sourceDir, stateDir, candidate := setupLocalRun(t, "discover-empty", `{}`)
+	if _, err := Activate(context.Background(), candidate, stateDir, "local-user", true); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Discover(context.Background(), DiscoveryOptions{
+		SourceRoot: sourceDir, StateDir: stateDir, Actor: "local-user", AllowLocal: true,
+		Disposition: "hold",
+	})
+	if err != nil {
+		t.Fatalf("Discover() error = %v", err)
+	}
+
+	stored, err := os.ReadFile(filepath.Join(stateDir, "metadata", "proposals", result.ProposalID+".json"))
+	if err != nil {
+		t.Fatalf("reading persisted proposal: %v", err)
+	}
+	response, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal discovery response: %v", err)
+	}
+	var responseEnvelope struct {
+		Proposal json.RawMessage `json:"proposal"`
+	}
+	if err := json.Unmarshal(response, &responseEnvelope); err != nil {
+		t.Fatalf("discovery response is invalid JSON: %v", err)
+	}
+	for name, encoded := range map[string][]byte{
+		"response": responseEnvelope.Proposal, "stored proposal": stored,
+	} {
+		var wire struct {
+			Observation struct {
+				Columns json.RawMessage `json:"columns"`
+			} `json:"observation"`
+			Proposed json.RawMessage `json:"proposedColumns"`
+		}
+		if err := json.Unmarshal(encoded, &wire); err != nil {
+			t.Fatalf("%s is invalid JSON: %v", name, err)
+		}
+		if string(wire.Observation.Columns) != "[]" || string(wire.Proposed) != "[]" {
+			t.Fatalf("%s columns = %s / %s, want [] / []", name, wire.Observation.Columns, wire.Proposed)
+		}
+	}
+}
 
 func TestDiscoverPersistsVersionedProposalWithoutChangingActiveRevision(t *testing.T) {
 	_, sourceDir, stateDir, candidate := setupLocalRun(t, "discover-1", `{"id":1,"name":"Synthetic"}`)
