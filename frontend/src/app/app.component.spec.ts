@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -136,5 +136,38 @@ describe('AppComponent local-operation safeguards', () => {
     component.cleaningOperation = 'replace_null';
     component.replacementValueText = '9007199254740993';
     expect(access.cleaningRequest()).toBeNull();
+  });
+
+  it('marks unrecognized mutating failures as unknown outcomes', () => {
+    const access = component as unknown as {
+      failureView(error: unknown, mutatingOperation?: string): {
+        category: string;
+        commitCertainty?: string;
+        reconciliation?: string;
+        retryable?: boolean;
+      };
+    };
+    const failure = access.failureView(
+      new HttpErrorResponse({ status: 502, error: { message: 'proxy lost response' } }),
+      'Run ingestion',
+    );
+    expect(failure.category).toBe('unknown_outcome');
+    expect(failure.commitCertainty).toBe('unknown');
+    expect(failure.reconciliation).toBe('reconcile_before_retry');
+    expect(failure.retryable).toBe(false);
+  });
+
+  it('keeps unrecognized read-only failures on the existing HTTP path', () => {
+    const access = component as unknown as {
+      failureView(error: unknown, mutatingOperation?: string): {
+        category: string;
+        commitCertainty?: string;
+      };
+    };
+    const failure = access.failureView(
+      new HttpErrorResponse({ status: 502, error: { message: 'proxy error' } }),
+    );
+    expect(failure.category).toBe('http_error');
+    expect(failure.commitCertainty).toBeUndefined();
   });
 });

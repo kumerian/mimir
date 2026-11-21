@@ -504,7 +504,7 @@ export class AppComponent implements OnInit {
         ...items.filter((item) => item.revision !== summary.revision || item.status !== summary.status),
         summary,
       ]);
-    });
+    }, true);
   }
 
   isDigest(value: string): boolean {
@@ -545,7 +545,7 @@ export class AppComponent implements OnInit {
     if (this.requiresExpectedActive()) request.expectedActive = this.expectedActiveRevision.trim();
     this.execute('Activate metadata', this.api.activate(request), (result) => {
       this.activationResult.set(result);
-    });
+    }, true);
   }
 
   discover(): void {
@@ -560,7 +560,7 @@ export class AppComponent implements OnInit {
   runIngestion(): void {
     const sourceRoot = this.runSourceRoot.trim();
     if (!sourceRoot) return;
-    this.execute('Run ingestion', this.api.run({ sourceRoot }), (result) => this.runResult.set(result));
+    this.execute('Run ingestion', this.api.run({ sourceRoot }), (result) => this.runResult.set(result), true);
   }
 
   evaluateSchedules(): void {
@@ -573,14 +573,14 @@ export class AppComponent implements OnInit {
       }
       request.at = evaluatedAt.toISOString();
     }
-    this.execute('Evaluate schedules', this.api.evaluateSchedules(request), (result) => this.scheduleResult.set(result));
+    this.execute('Evaluate schedules', this.api.evaluateSchedules(request), (result) => this.scheduleResult.set(result), true);
   }
 
   stopScheduleRequests(): void {
     this.execute('Stop pending schedule requests', this.api.stopScheduleRequests(this.stopReason), (result) => {
       this.stopResult.set(result);
       this.scheduleResult.set(null);
-    });
+    }, true);
   }
 
   updateStopReason(event: Event): void {
@@ -600,7 +600,7 @@ export class AppComponent implements OnInit {
       sourceRoot,
       runId,
       reason: this.replayReason,
-    }), (result) => this.replayResult.set(result));
+    }), (result) => this.replayResult.set(result), true);
   }
 
   previewCleaning(): void {
@@ -635,7 +635,7 @@ export class AppComponent implements OnInit {
     this.execute('Apply cleaning', this.api.applyCleaning(request), (result) => {
       this.cleaningResult.set(result);
       this.applyConfirmed = false;
-    });
+    }, true);
   }
 
   clearCleaning(): void {
@@ -749,7 +749,12 @@ export class AppComponent implements OnInit {
     this.operationError.set({ category, diagnostic });
   }
 
-  private execute<T>(name: string, request: import('rxjs').Observable<T>, onSuccess: (value: T) => void): void {
+  private execute<T>(
+    name: string,
+    request: import('rxjs').Observable<T>,
+    onSuccess: (value: T) => void,
+    mutating = false,
+  ): void {
     if (this.isBusy()) return;
     this.operationError.set(null);
     this.busy.set(name);
@@ -759,14 +764,24 @@ export class AppComponent implements OnInit {
         this.busy.set(null);
       },
       error: (error: unknown) => {
-        this.operationError.set(this.failureView(error));
+        this.operationError.set(this.failureView(error, mutating ? name : undefined));
         this.busy.set(null);
       },
     });
   }
 
-  private failureView(error: unknown): FailureView {
+  private failureView(error: unknown, mutatingOperation?: string): FailureView {
     if (!(error instanceof HttpErrorResponse)) {
+      if (mutatingOperation) {
+        return {
+          category: 'unknown_outcome',
+          diagnostic: 'The response for this operation was lost. Its outcome is unknown.',
+          operation: mutatingOperation,
+          retryable: false,
+          commitCertainty: 'unknown',
+          reconciliation: 'reconcile_before_retry',
+        };
+      }
       return { category: 'request_failed', diagnostic: 'The operation failed before a safe API response was received.' };
     }
     const body = error.error;
@@ -783,6 +798,17 @@ export class AppComponent implements OnInit {
         retryable: typeof body['retryable'] === 'boolean' ? body['retryable'] : undefined,
         commitCertainty: typeof body['commitCertainty'] === 'string' ? body['commitCertainty'] : undefined,
         reconciliation: typeof body['reconciliation'] === 'string' ? body['reconciliation'] : undefined,
+        httpStatus: error.status || undefined,
+      };
+    }
+    if (mutatingOperation) {
+      return {
+        category: 'unknown_outcome',
+        diagnostic: 'The response for this operation was lost or returned without a recognized result. Its outcome is unknown.',
+        operation: mutatingOperation,
+        retryable: false,
+        commitCertainty: 'unknown',
+        reconciliation: 'reconcile_before_retry',
         httpStatus: error.status || undefined,
       };
     }
