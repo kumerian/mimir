@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import secrets
 import shutil
 import subprocess
 import sys
@@ -15,22 +16,36 @@ def run_tests(up_flags):
     windows = os.name == "nt"
     wrapper = ROOT / "backend" / ("mvnw.cmd" if windows else "mvnw")
     npm = "npm.cmd" if windows else "npm"
+    npm_command = [npm]
 
     if shutil.which(npm) is None:
-        raise FileNotFoundError(
-            "npm was not found on PATH; install Node.js 24 with npm "
-            "before running the frontend tests"
+        fnm = shutil.which("fnm")
+        if fnm is None:
+            raise FileNotFoundError(
+                "npm was not found on PATH; install Node.js 24 with npm "
+                "before running the frontend tests"
+            )
+        npm_command = [fnm, "exec", "--using", "24", "--", npm]
+        print(
+            "npm is not on PATH; using fnm-managed Node.js 24. "
+            "If it is not installed, run 'fnm install 24'.",
+            flush=True,
         )
 
     subprocess.run(
         [str(wrapper), "--batch-mode", "--no-transfer-progress", "verify"],
         cwd=ROOT / "backend", check=True,
     )
-    subprocess.run([npm, "ci"], cwd=ROOT / "frontend", check=True)
-    subprocess.run([npm, "test"], cwd=ROOT / "frontend", check=True)
+    subprocess.run([*npm_command, "ci"], cwd=ROOT / "frontend", check=True)
+    subprocess.run([*npm_command, "test"], cwd=ROOT / "frontend", check=True)
 
     env = os.environ.copy()
-    env.update(COMPOSE_PROJECT_NAME=f"mimir-test-{uuid.uuid4().hex}", FRONTEND_PORT="0")
+    env.update(
+        COMPOSE_PROJECT_NAME=f"mimir-test-{uuid.uuid4().hex}",
+        FRONTEND_PORT="0",
+        DB_PASSWORD=secrets.token_hex(32),
+        DB_ROOT_PASSWORD=secrets.token_hex(32),
+    )
     compose = ["docker", "compose"]
     try:
         subprocess.run(

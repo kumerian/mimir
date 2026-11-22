@@ -1,6 +1,11 @@
 spring:
   application:
     name: mimir
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
   datasource:
     url: ${DB_URL:jdbc:mariadb://localhost:3306/mimir}
     username: ${DB_USER:mimir}

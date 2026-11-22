@@ -1,0 +1,151 @@
+<section aria-labelledby="metadata-heading">
+  <h2 id="metadata-heading">Ingestion metadata</h2>
+  <p>
+    Define source systems, authentication references, interfaces, objects, and columns.
+    Authentication locations are references only. Never enter passwords or tokens here.
+  </p>
+  <nav aria-label="Metadata entities">
+    @for (entity of entities; track entity.resource) {
+      <button
+        type="button"
+        [disabled]="busy()"
+        [attr.aria-pressed]="selected() === entity"
+        (click)="select(entity)"
+      >
+        {{ entity.label }}
+      </button>
+    }
+  </nav>
+  <h3>{{ selected().label }}</h3>
+  <div class="actions">
+    <button type="button" [disabled]="busy() || !loaded()" (click)="edit()">New record</button>
+    <button type="button" [disabled]="busy() || formOpen() || pendingDelete()" (click)="refresh()">
+      Refresh
+    </button>
+  </div>
+  @if (busy()) {
+    <p role="status">Working...</p>
+  }
+  @if (message()) {
+    <p role="status">{{ message() }}</p>
+  }
+  @if (error()) {
+    <p role="alert" class="error">{{ error() }}</p>
+  }
+  @if (formOpen()) {
+    <form (ngSubmit)="save()">
+      <h4>{{ editingId() === null ? 'Create record' : 'Edit record' }}</h4>
+      <p>Names are globally unique within their entity. Primary keys cannot be changed.</p>
+      @for (field of selected().fields; track field.name) {
+        <label [for]="field.name"
+          >{{ field.label }}{{ field.optional ? ' (optional)' : ' *' }}</label
+        >
+        @if (field.reference) {
+          <select
+            [id]="field.name"
+            [name]="field.name"
+            [(ngModel)]="values[field.name]"
+            [required]="!field.optional"
+            [disabled]="busy()"
+          >
+            <option [ngValue]="null">{{ field.optional ? 'None' : 'Choose a record' }}</option>
+            @for (option of options(field); track option) {
+              <option [ngValue]="option[field.referenceKey!]">
+                {{ option[field.referenceKey!] }}
+              </option>
+            }
+          </select>
+        } @else if (field.kind === 'boolean') {
+          <select
+            [id]="field.name"
+            [name]="field.name"
+            [(ngModel)]="values[field.name]"
+            [required]="!field.optional"
+            [disabled]="busy()"
+          >
+            @if (field.optional) {
+              <option [ngValue]="null">None</option>
+            } @else {
+              <option [ngValue]="null">Choose</option>
+            }
+            <option [ngValue]="true">True</option>
+            <option [ngValue]="false">False</option>
+          </select>
+        } @else {
+          <input
+            [id]="field.name"
+            [name]="field.name"
+            [(ngModel)]="values[field.name]"
+            [type]="field.kind === 'number' ? 'number' : 'text'"
+            [required]="!field.optional"
+            [maxlength]="field.maxLength ?? 255"
+            [disabled]="busy()"
+            [readOnly]="editingId() !== null && field.name === selected().key"
+            autocomplete="off"
+          />
+        }
+      }
+      <div class="actions">
+        <button type="submit" [disabled]="busy() || !valid()">Save</button>
+        <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
+      </div>
+    </form>
+  }
+  @if (pendingDelete(); as record) {
+    <div role="alert">
+      <p>Delete "{{ record[selected().key] }}"? Referenced records cannot be deleted.</p>
+      <button type="button" [disabled]="busy()" (click)="confirmDelete()">Confirm delete</button>
+      <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
+    </div>
+  }
+  @if (loaded()) {
+    @if (records()[selected().resource]?.length) {
+      <div class="table-scroll">
+        <table>
+          <caption>
+            {{
+              selected().label
+            }}
+          </caption>
+          <thead>
+            <tr>
+              @for (field of selected().fields; track field.name) {
+                <th scope="col">{{ field.label }}</th>
+              }
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (record of records()[selected().resource]; track record[selected().key]) {
+              <tr>
+                @for (field of selected().fields; track field.name) {
+                  <td>{{ record[field.name] ?? 'None' }}</td>
+                }
+                <td>
+                  <button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="edit(record)"
+                    [attr.aria-label]="'Edit ' + record[selected().key]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="requestDelete(record)"
+                    [attr.aria-label]="'Delete ' + record[selected().key]"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p>No records yet. Use New record to add one.</p>
+    }
+  }
+</section>

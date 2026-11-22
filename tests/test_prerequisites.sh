@@ -3,9 +3,10 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-id() { echo 0; }
+id() { echo "${MOCK_UID:-0}"; }
 dpkg() { echo amd64; }
 uname() { echo x86_64; }
+sudo() { echo "sudo $*"; }
 apt-get() { echo "apt-get $*"; }
 dnf() { echo "dnf $*"; }
 install() { echo "install $*"; }
@@ -25,7 +26,7 @@ brew() {
         echo "brew $*"
     fi
 }
-export -f id dpkg uname apt-get dnf install chmod curl tee brew
+export -f id dpkg uname sudo apt-get dnf install chmod curl tee brew
 
 linux() {
     local release=$1
@@ -40,6 +41,10 @@ done
 
 output=$(linux 'ID=fedora')
 [[ $output == *"dnf install -y make python3 java-21-openjdk-devel nodejs-24.* docker-ce"* ]]
+
+output=$(MOCK_UID=1000 linux "ID=ubuntu
+VERSION_CODENAME=bookworm")
+[[ $output == *"sudo apt-get install -y make python3 temurin-21-jdk nodejs=24.* docker-ce"* ]]
 
 if linux 'ID=unsupported' >/dev/null 2>&1; then
     echo "Unsupported distributions must fail." >&2
