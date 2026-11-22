@@ -32,17 +32,18 @@ no domain tables, migrations, authentication, or ingestion workflows yet.
   Nginx configuration, Dockerfile.
 - `docker/mariadb/`: buildable image based on the official MariaDB image.
 - `tests/docker/`: Python standard-library integration tests.
+- `Makefile`: shortcuts for running all tests and the local containers.
 - `.github/workflows/ci.yml`: application tests, stack tests, then image builds.
 - `docs/`: project documentation.
 
 ## Run the complete stack
 
-Prerequisites: Docker Engine with Docker Compose v2. Python 3 is required to run
+Prerequisites: GNU Make and Docker Engine with Docker Compose v2. Python 3 is required to run
 the container integration tests. Host Java and Node are not needed for Docker.
 
 ```sh
 cp .env.example .env
-docker compose up --build --detach --wait --wait-timeout 180
+make up
 ```
 
 Open `http://localhost:8080`. The page reports database connectivity through the
@@ -61,7 +62,7 @@ configurable in `.env`. Database passwords are required. `IMAGE_TAG` defaults to
 changing `.env` does not rotate credentials in an existing database.
 
 ```sh
-docker compose down
+make down
 ```
 
 This stops the stack while retaining its database. To intentionally erase the
@@ -105,7 +106,24 @@ first if it already occupies that port.
 
 ## Test suites
 
-From the repository root:
+With GNU Make, JDK 21, Node.js 24, Python 3, and Docker Compose installed, run
+all suites from the repository root:
+
+```sh
+cp .env.example .env # First use only; do not overwrite existing credentials.
+make test
+```
+
+`make test` runs Java verification, installs the locked frontend dependencies and
+runs Angular tests, then builds and tests all three containers. Docker tests use
+a unique Compose project and a dynamically assigned frontend port. Their
+containers and temporary database volume are cleaned up even if startup or
+tests fail; the normal local stack and its database are left untouched.
+`make up` builds and starts the local stack, waiting for healthy containers.
+`make down` stops it without deleting database storage. Plain `make` defaults to
+`make up`.
+
+The equivalent individual suite commands are:
 
 ```sh
 (cd backend && ./mvnw --batch-mode --no-transfer-progress verify)
@@ -166,3 +184,5 @@ docker compose up --no-build --detach --wait
 
 The secret is mounted only during Maven build steps, is not copied into image
 layers, and is not needed on hosts using the standard public trust chain.
+After building trusted images as above, use `make up UP_FLAGS=--no-build` or
+`make test UP_FLAGS=--no-build` to reuse them without triggering another build.
