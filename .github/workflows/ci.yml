@@ -61,6 +61,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -p test_runner.py -v
+      - run: bash tests/test_prerequisites.sh
+        shell: bash
+      - run: ./tests/test_prerequisites_windows.ps1
+        if: runner.os == 'Windows'
 
   docker-tests:
     needs: [backend-tests, frontend-tests, test-runner]

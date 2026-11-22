@@ -32,9 +32,51 @@ no domain tables, migrations, authentication, or ingestion workflows yet.
   Nginx configuration, Dockerfile.
 - `docker/mariadb/`: buildable image based on the official MariaDB image.
 - `tests/docker/`: Python standard-library integration tests.
-- `Makefile`: shortcuts for running all tests and the local containers.
+- `scripts/`: test runner and platform-specific prerequisite installers.
+- `Makefile`: shortcuts for installing prerequisites, running tests, and local containers.
 - `.github/workflows/ci.yml`: application tests, stack tests, then image builds.
 - `docs/`: project documentation.
+
+Run `make help` to list the available Make targets.
+
+## Install prerequisites
+
+The installers set up GNU Make, JDK 21, Node.js 24 with npm, Python 3, and Docker
+with Compose v2 for development and tests. They install system packages and may
+prompt for administrator access or package agreements. Review the scripts before
+running them, especially on a shared machine.
+
+Install the platform package manager first: [Windows Package Manager](https://learn.microsoft.com/windows/package-manager/winget/)
+on Windows or [Homebrew](https://brew.sh/) on macOS. On Linux, the installer
+supports Ubuntu, Debian, and Fedora releases and architectures supported by the
+Docker, NodeSource, and JDK package repositories; it requires root or sudo.
+It adds Docker and NodeSource repositories, plus Adoptium on Debian/Ubuntu.
+Existing conflicting packages or repository configuration may need manual
+resolution; the installer does not remove them.
+
+If Make is already available, run `make install-prerequisites`. Otherwise,
+bootstrap directly from the repository root:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-prerequisites-windows.ps1
+```
+
+```sh
+# macOS
+bash scripts/install-prerequisites-macos.sh
+# Ubuntu, Debian, or Fedora
+bash scripts/install-prerequisites-linux.sh
+```
+
+Open a new terminal after installation. Set `JAVA_HOME` to the JDK 21 directory;
+on macOS, follow the installer's printed `JAVA_HOME` and `PATH` instructions
+to select the keg-only Node.js 24 and JDK. On Windows, ensure the installed
+tools are on `PATH`. Start Docker Desktop and complete its first-run setup on
+Windows or macOS. On Linux, start the Docker service and configure access using
+[Docker's post-installation instructions](https://docs.docker.com/engine/install/linux-postinstall/).
+Membership in the Docker group grants root-equivalent privileges; the installer
+does not add users to it. Maven is provided by the checked-in wrapper and
+frontend dependencies are installed by `npm ci`.
 
 ## Run the complete stack
 
