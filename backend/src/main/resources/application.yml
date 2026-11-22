@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: mimir
+  datasource:
+    url: ${DB_URL:jdbc:mariadb://localhost:3306/mimir}
+    username: ${DB_USER:mimir}
+    password: ${DB_PASSWORD}
+    hikari:
+      connection-timeout: 5000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
