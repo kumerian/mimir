@@ -8,13 +8,14 @@ else
 PYTHON ?= python3
 endif
 
-.PHONY: help install-prerequisites test up down
+.PHONY: help install-prerequisites test run up down
 
 help:
 	@echo Available targets:
 	@echo help - Show this help
 	@echo install-prerequisites - Install development and test prerequisites
 	@echo test - Run all test suites
+	@echo run - Build and start the entire stack - alias of up
 	@echo up - Build and start the stack - default
 	@echo down - Stop the stack without deleting its data
 
@@ -31,6 +32,8 @@ endif
 
 test:
 	$(PYTHON) scripts/run_tests.py $(UP_FLAGS)
+
+run: up
 
 up:
 	docker compose up $(UP_FLAGS) --detach --wait --wait-timeout 180

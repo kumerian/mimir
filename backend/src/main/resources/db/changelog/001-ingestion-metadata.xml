@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+  <changeSet id="001-ingestion-metadata" author="mimir">
+    <createTable tableName="source_system">
+      <column name="source_name" type="varchar(255)"><constraints primaryKey="true" nullable="false"/></column>
+      <column name="source_functional_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="source_type" type="varchar(255)"><constraints nullable="false"/></column>
+    </createTable>
+    <createTable tableName="authentication">
+      <column name="authentication_id" type="varchar(255)"><constraints primaryKey="true" nullable="false"/></column>
+      <column name="authentication_type" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="authentication_location" type="varchar(2048)"><constraints nullable="false"/></column>
+    </createTable>
+    <createTable tableName="source_system_interface">
+      <column name="interface_name" type="varchar(255)"><constraints primaryKey="true" nullable="false"/></column>
+      <column name="source_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="authentication_id" type="varchar(255)"/>
+      <column name="interface_functional_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="interface_type" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="interface_location" type="varchar(2048)"><constraints nullable="false"/></column>
+    </createTable>
+    <createTable tableName="source_object">
+      <column name="object_name" type="varchar(255)"><constraints primaryKey="true" nullable="false"/></column>
+      <column name="interface_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="object_functional_name" type="varchar(255)"><constraints nullable="false"/></column>
+    </createTable>
+    <createTable tableName="source_column">
+      <column name="column_name" type="varchar(255)"><constraints primaryKey="true" nullable="false"/></column>
+      <column name="object_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="column_functional_name" type="varchar(255)"><constraints nullable="false"/></column>
+      <column name="datatype" type="varchar(255)"><constraints nullable="false"/></column>
+    </createTable>
+    <addForeignKeyConstraint constraintName="fk_interface_source" baseTableName="source_system_interface" baseColumnNames="source_name" referencedTableName="source_system" referencedColumnNames="source_name" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <addForeignKeyConstraint constraintName="fk_interface_authentication" baseTableName="source_system_interface" baseColumnNames="authentication_id" referencedTableName="authentication" referencedColumnNames="authentication_id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <addForeignKeyConstraint constraintName="fk_object_interface" baseTableName="source_object" baseColumnNames="interface_name" referencedTableName="source_system_interface" referencedColumnNames="interface_name" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <addForeignKeyConstraint constraintName="fk_column_object" baseTableName="source_column" baseColumnNames="object_name" referencedTableName="source_object" referencedColumnNames="object_name" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <createIndex tableName="source_system_interface" indexName="idx_interface_source"><column name="source_name"/></createIndex>
+    <createIndex tableName="source_system_interface" indexName="idx_interface_authentication"><column name="authentication_id"/></createIndex>
+    <createIndex tableName="source_object" indexName="idx_object_interface"><column name="interface_name"/></createIndex>
+    <createIndex tableName="source_column" indexName="idx_column_object"><column name="object_name"/></createIndex>
+    <rollback>
+      <dropTable tableName="source_column"/>
+      <dropTable tableName="source_object"/>
+      <dropTable tableName="source_system_interface"/>
+      <dropTable tableName="authentication"/>
+      <dropTable tableName="source_system"/>
+    </rollback>
+  </changeSet>
+</databaseChangeLog>

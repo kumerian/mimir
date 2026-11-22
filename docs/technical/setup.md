@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The scaffold runs exactly three containers:
+The application runs exactly three containers:
 
 | Service | Stack | Connectivity |
 | --- | --- | --- |
@@ -22,8 +22,10 @@ errors propagate as HTTP errors rather than a false success response.
 Nginx's `/healthz` checks the frontend server. Compose waits for MariaDB health
 before starting Java, and Java health before starting Nginx.
 
-This is an infrastructure scaffold, not an ingestion implementation. There are
-no domain tables, migrations, authentication, or ingestion workflows yet.
+The [ingestion metadata model](ingestion-metadata.md) is implemented with
+Liquibase migrations, Spring Data JDBC records, CRUD REST endpoints, and an
+Angular editor. There is no login/authentication layer or ingestion execution
+workflow; authentication records contain only references to credential locations.
 
 ## Repository layout
 
@@ -93,8 +95,11 @@ On Windows, run `Copy-Item .env.example .env` in PowerShell instead of `cp`.
 These commands copy the example credentials only for first-time setup; do not
 overwrite an existing `.env`.
 
-Open `http://localhost:8080`. The page reports database connectivity through the
-backend. Inspect failures with `docker compose logs --no-color`.
+`make run` is an alias for `make up` and starts the entire suite of application
+services. Open `http://localhost:8080`. The page reports database connectivity and
+provides the [metadata editor](../user/ingestion-metadata.md). Inspect failures
+with `docker compose logs --no-color`. Liquibase upgrades the database at backend
+startup; retain existing volumes when deploying new application versions.
 
 The example credentials are **local-development only**. Change both passwords
 in `.env` before using shared infrastructure; `.env` is ignored by Git and
@@ -175,6 +180,8 @@ containers and temporary database volume are cleaned up even if startup or
 tests fail; Compose logs are printed on failure. The normal local stack and its
 database are left untouched.
 `make up` builds and starts the local stack, waiting for healthy containers.
+`make run` does the same; `make test` runs all test suites rather than starting
+a persistent application stack.
 `make down` stops it without deleting database storage. Plain `make` defaults to
 `make up`.
 
@@ -200,9 +207,12 @@ tests. The Docker commands require the same Compose project and environment
 throughout; unlike `make test`, the individual commands above use the local
 stack and do not create or clean up an isolated test project.
 
-Java tests cover status success/failure and Spring HTTP/health integration using
-an isolated H2 database. Angular tests cover loading, the successful API response,
-and visible request errors without a live backend. Docker tests verify exactly
+Java tests cover status success/failure, HTTP/health integration, and the complete
+Liquibase-backed metadata API using isolated H2 databases. Angular tests cover
+loading, CRUD forms, relationship choices, validation, and visible request errors
+without a live backend. CI also runs a production Angular build on each host.
+Docker tests verify metadata CRUD, referential integrity, persistence and migration
+idempotence after a backend restart, and exactly
 three healthy containers, Angular assets, SPA navigation, real MariaDB-backed API
 access through Nginx, and correct missing-asset/API errors. They complement,
 rather than replace, the H2 tests.
