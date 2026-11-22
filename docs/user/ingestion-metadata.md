@@ -4,6 +4,8 @@
 
 Complete the [local setup](../technical/setup.md), then run `make run`.
 Open `http://localhost:8080` (or the configured frontend port). The page shows
+the Mimir banner with its 32x32 logo, and the browser tab uses the Mimir favicon.
+Below the banner are
 database connectivity and an **Ingestion metadata** editor. Choose **Source
 systems**, **Authentications**, **Interfaces**, **Objects**, or **Columns** to
 view all records of that kind.
@@ -16,18 +18,23 @@ Refresh succeeds.
 ## Create a metadata hierarchy
 
 1. Choose **Source systems**, then **New record**. Enter a globally unique source
-   name, its business-facing functional name, and a source type; select **Save**.
+   name, source type, application, and active state. Optionally enter the functional
+   name, owner, and location; select **Save**.
 2. If an interface needs authentication, create an **Authentication** first.
-   Enter an id, type, and the location of the authentication material, such as
-   `vault://team/crm`. **Never enter passwords, tokens, or credential contents**.
+   Enter an id, type, location of the authentication material, such as
+   `vault://team/crm`, and active state. **Never enter passwords, tokens, or credential contents**.
 3. Under **Interfaces**, create a record with a unique interface name. Select
    its source system and optional authentication from the lists. **None**
-   means no authentication reference. Enter its functional name, type, and
-   access location.
-4. Under **Objects**, create an object with a unique object name and functional
-   name, selecting its interface.
-5. Under **Columns**, create a column with a unique column name, functional
-   name, and datatype, selecting its object.
+   means no authentication reference.    Enter its functional name, type, access location, decimal and thousands
+   separators, optional delimiter/header setting, and active state.
+4. Under **Objects**, create an object with a unique object name, selecting its
+interface. Set confidentiality, business-critical, and active states; optionally
+enter a functional name and description.
+5. Under **Columns**, create a column with a unique column name, datatype,
+ordinal position, encryption, partition, key, nullability, datatype-testing,
+and active settings, selecting its object. Optional fields include alternate
+name, functional name, description, ordinals, length, numeric scale and precision,
+and a null-value regex.
 
 Fields marked `*` are required and cannot be whitespace-only. Names, types,
 functional names, datatypes, and references allow up to 255 characters.

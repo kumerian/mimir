@@ -6,7 +6,15 @@ import { MetadataEditor } from './metadata-editor';
 
 describe('MetadataEditor', () => {
   let http: HttpTestingController;
-  const source = { sourceName: 'crm', sourceFunctionalName: 'CRM', sourceType: 'database' };
+  const source = {
+    sourceName: 'crm',
+    sourceFunctionalName: 'CRM',
+    sourceType: 'database',
+    sourceOwner: 'Owner',
+    sourceApplication: 'CRM',
+    sourceLocation: 'https://crm',
+    isActive: true,
+  };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -33,7 +41,18 @@ describe('MetadataEditor', () => {
       fixture.componentInstance.select(entity);
       fixture.componentInstance.edit();
       fixture.componentInstance.values = Object.fromEntries(
-        entity.fields.map((field) => [field.name, field.optional ? '' : `${field.name}-value`]),
+        entity.fields.map((field) => [
+          field.name,
+          field.optional
+            ? null
+            : field.kind === 'boolean'
+              ? true
+              : field.kind === 'number'
+                ? 1
+                : field.maxLength
+                  ? 'x'.repeat(field.maxLength)
+                  : `${field.name}-value`,
+        ]),
       );
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('input, select').length).toBe(

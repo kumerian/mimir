@@ -169,13 +169,14 @@ all suites from the repository root. Start Docker first and set `JAVA_HOME` to
 the JDK directory:
 
 ```sh
-cp .env.example .env # First use only; do not overwrite existing credentials.
 make test
 ```
 
 `make test` runs Java verification, installs the locked frontend dependencies and
 runs Angular tests, then builds and tests all three containers. Docker tests use
-a unique Compose project and a dynamically assigned frontend port. Their
+a unique Compose project, generated database passwords, and a dynamically
+assigned frontend port. No `.env` file is required for `make test`; generated
+passwords override local database passwords only in the test subprocesses. Their
 containers and temporary database volume are cleaned up even if startup or
 tests fail; Compose logs are printed on failure. The normal local stack and its
 database are left untouched.
@@ -185,8 +186,12 @@ a persistent application stack.
 `make down` stops it without deleting database storage. Plain `make` defaults to
 `make up`.
 
-On Windows, use PowerShell or Command Prompt with GNU Make on `PATH`; use
-`Copy-Item .env.example .env` for first-time setup in PowerShell. The test target
+If npm is not on `PATH` but [fnm](https://github.com/Schniz/fnm) is installed,
+the runner executes frontend commands through `fnm exec --using 24`. Install
+that runtime once with `fnm install 24`; initializing fnm in your shell is not
+required for `make test`. When npm is already on `PATH`, it is used as before.
+
+On Windows, use PowerShell or Command Prompt with GNU Make on `PATH`. The test target
 uses `python` on Windows and `python3` on macOS and Linux. Override it if needed,
 for example `make test PYTHON=python3`. The Windows Maven wrapper needs
 `JAVA_HOME`, not just `java` on `PATH`.

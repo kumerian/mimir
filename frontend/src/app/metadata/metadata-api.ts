@@ -2,18 +2,23 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 
 export interface MetadataRecord {
-  [field: string]: string | null;
+  [field: string]: string | number | boolean | null;
 }
 
 export interface SourceSystem extends MetadataRecord {
   sourceName: string;
   sourceFunctionalName: string;
   sourceType: string;
+  sourceOwner: string | null;
+  sourceApplication: string;
+  sourceLocation: string | null;
+  isActive: boolean;
 }
 export interface Authentication extends MetadataRecord {
   authenticationId: string;
   authenticationType: string;
   authenticationLocation: string;
+  isActive: boolean;
 }
 export interface SourceSystemInterface extends MetadataRecord {
   interfaceName: string;
@@ -22,17 +27,41 @@ export interface SourceSystemInterface extends MetadataRecord {
   interfaceFunctionalName: string;
   interfaceType: string;
   interfaceLocation: string;
+  decimalSeparator: string;
+  thousandsSeparator: string;
+  delimiter: string | null;
+  hasHeaders: boolean | null;
+  isActive: boolean;
 }
 export interface SourceObject extends MetadataRecord {
   objectName: string;
   interfaceName: string;
   objectFunctionalName: string;
+  objectDescription: string | null;
+  isConfidential: boolean;
+  isBusinessCritical: boolean;
+  isActive: boolean;
 }
 export interface SourceColumn extends MetadataRecord {
   columnName: string;
   objectName: string;
   columnFunctionalName: string;
+  columnAlternateName: string | null;
+  columnDescription: string | null;
+  columnOrdinalPosition: number;
+  needsEncryption: boolean;
+  isPartitionField: boolean;
+  partitionOrdinalPosition: number;
+  isKey: boolean;
+  keyOrdinalPosition: number;
+  isNullable: boolean;
+  testDatatype: boolean;
   datatype: string;
+  characterMaximumLength: number | null;
+  numericScale: number | null;
+  numericPrecision: number | null;
+  nullValueRegexPattern: string | null;
+  isActive: boolean;
 }
 
 export interface MetadataTypes {
@@ -48,6 +77,7 @@ export interface Field {
   name: string;
   label: string;
   optional?: boolean;
+  kind?: 'text' | 'boolean' | 'number';
   reference?: Resource;
   referenceKey?: string;
   maxLength?: number;
@@ -66,8 +96,12 @@ export const ENTITIES: readonly Entity[] = [
     key: 'sourceName',
     fields: [
       { name: 'sourceName', label: 'Source name' },
-      { name: 'sourceFunctionalName', label: 'Source functional name' },
+      { name: 'sourceFunctionalName', label: 'Source functional name', optional: true },
       { name: 'sourceType', label: 'Source type' },
+      { name: 'sourceOwner', label: 'Source owner', optional: true },
+      { name: 'sourceApplication', label: 'Source application' },
+      { name: 'sourceLocation', label: 'Source location', optional: true },
+      { name: 'isActive', label: 'Is active', kind: 'boolean' },
     ],
   },
   {
@@ -78,6 +112,7 @@ export const ENTITIES: readonly Entity[] = [
       { name: 'authenticationId', label: 'Authentication id' },
       { name: 'authenticationType', label: 'Authentication type' },
       { name: 'authenticationLocation', label: 'Authentication location', maxLength: 2048 },
+      { name: 'isActive', label: 'Is active', kind: 'boolean' },
     ],
   },
   {
@@ -99,9 +134,14 @@ export const ENTITIES: readonly Entity[] = [
         reference: 'authentications',
         referenceKey: 'authenticationId',
       },
-      { name: 'interfaceFunctionalName', label: 'Interface functional name' },
+      { name: 'interfaceFunctionalName', label: 'Interface functional name', optional: true },
       { name: 'interfaceType', label: 'Interface type' },
       { name: 'interfaceLocation', label: 'Interface location', maxLength: 2048 },
+      { name: 'decimalSeparator', label: 'Decimal separator', maxLength: 1 },
+      { name: 'thousandsSeparator', label: 'Thousands separator', maxLength: 1 },
+      { name: 'delimiter', label: 'Delimiter', optional: true, maxLength: 1 },
+      { name: 'hasHeaders', label: 'Has headers', optional: true, kind: 'boolean' },
+      { name: 'isActive', label: 'Is active', kind: 'boolean' },
     ],
   },
   {
@@ -116,7 +156,11 @@ export const ENTITIES: readonly Entity[] = [
         reference: 'interfaces',
         referenceKey: 'interfaceName',
       },
-      { name: 'objectFunctionalName', label: 'Object functional name' },
+      { name: 'objectFunctionalName', label: 'Object functional name', optional: true },
+      { name: 'objectDescription', label: 'Object description', optional: true },
+      { name: 'isConfidential', label: 'Is confidential', kind: 'boolean' },
+      { name: 'isBusinessCritical', label: 'Is business critical', kind: 'boolean' },
+      { name: 'isActive', label: 'Is active', kind: 'boolean' },
     ],
   },
   {
@@ -126,8 +170,23 @@ export const ENTITIES: readonly Entity[] = [
     fields: [
       { name: 'columnName', label: 'Column name' },
       { name: 'objectName', label: 'Object', reference: 'objects', referenceKey: 'objectName' },
-      { name: 'columnFunctionalName', label: 'Column functional name' },
+      { name: 'columnAlternateName', label: 'Column alternate name', optional: true },
+      { name: 'columnFunctionalName', label: 'Column functional name', optional: true },
+      { name: 'columnDescription', label: 'Column description', optional: true },
+      { name: 'columnOrdinalPosition', label: 'Column ordinal position', kind: 'number' },
+      { name: 'needsEncryption', label: 'Needs encryption', kind: 'boolean' },
+      { name: 'isPartitionField', label: 'Is partition field', kind: 'boolean' },
+      { name: 'partitionOrdinalPosition', label: 'Partition ordinal position', kind: 'number' },
+      { name: 'isKey', label: 'Is key', kind: 'boolean' },
+      { name: 'keyOrdinalPosition', label: 'Key ordinal position', kind: 'number' },
+      { name: 'isNullable', label: 'Is nullable', kind: 'boolean' },
+      { name: 'testDatatype', label: 'Test datatype', kind: 'boolean' },
       { name: 'datatype', label: 'Datatype' },
+      { name: 'characterMaximumLength', label: 'Character maximum length', optional: true, kind: 'number' },
+      { name: 'numericScale', label: 'Numeric scale', optional: true, kind: 'number' },
+      { name: 'numericPrecision', label: 'Numeric precision', optional: true, kind: 'number' },
+      { name: 'nullValueRegexPattern', label: 'Null value regex pattern', optional: true },
+      { name: 'isActive', label: 'Is active', kind: 'boolean' },
     ],
   },
 ];

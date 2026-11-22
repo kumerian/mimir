@@ -33,6 +33,9 @@ class TestRunnerTest(unittest.TestCase):
         env = calls[3].kwargs["env"]
         self.assertTrue(env["COMPOSE_PROJECT_NAME"].startswith("mimir-test-"))
         self.assertEqual(env["FRONTEND_PORT"], "0")
+        self.assertTrue(env["DB_PASSWORD"])
+        self.assertTrue(env["DB_ROOT_PASSWORD"])
+        self.assertNotEqual(env["DB_PASSWORD"], env["DB_ROOT_PASSWORD"])
         self.assertEqual(calls[6].kwargs["env"]["COMPOSE_PROJECT_NAME"], env["COMPOSE_PROJECT_NAME"])
         self.assertEqual(calls[6].args[0][-3:], ["down", "--volumes", "--remove-orphans"])
         self.assertEqual(calls[4].args[0][-3:], ["port", "frontend", "80"])
@@ -45,6 +48,27 @@ class TestRunnerTest(unittest.TestCase):
         with self.assertRaisesRegex(FileNotFoundError, "install Node.js 24 with npm"):
             run_tests.run_tests(["--no-build"])
         run.assert_not_called()
+
+    @patch("scripts.run_tests.shutil.which", side_effect=[None, "fnm"])
+    @patch("scripts.run_tests.subprocess.run")
+    def test_uses_fnm_when_npm_is_not_on_path(self, run, _which):
+        run.return_value = SimpleNamespace(stdout="127.0.0.1:49152\n")
+        run_tests.run_tests(["--no-build"])
+        npm = "npm.cmd" if os.name == "nt" else "npm"
+        command = ["fnm", "exec", "--using", "24", "--", npm]
+        self.assertEqual(run.call_args_list[1].args[0], [*command, "ci"])
+        self.assertEqual(run.call_args_list[2].args[0], [*command, "test"])
+
+    @patch.dict(os.environ, {"DB_PASSWORD": "existing-db-value", "DB_ROOT_PASSWORD": "existing-root-value"})
+    @patch("scripts.run_tests.subprocess.run")
+    def test_test_credentials_do_not_use_or_change_local_stack_credentials(self, run):
+        run.return_value = SimpleNamespace(stdout="127.0.0.1:49152\n")
+        run_tests.run_tests(["--no-build"])
+        env = run.call_args_list[3].kwargs["env"]
+        self.assertNotEqual(env["DB_PASSWORD"], os.environ["DB_PASSWORD"])
+        self.assertNotEqual(env["DB_ROOT_PASSWORD"], os.environ["DB_ROOT_PASSWORD"])
+        self.assertEqual(os.environ["DB_PASSWORD"], "existing-db-value")
+        self.assertEqual(os.environ["DB_ROOT_PASSWORD"], "existing-root-value")
 
     @patch("scripts.run_tests.subprocess.run")
     def test_cleans_up_if_compose_start_fails(self, run):

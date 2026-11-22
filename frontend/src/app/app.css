@@ -1,8 +1,39 @@
+:host {
+  display: block;
+  font-family: system-ui, sans-serif;
+}
+
+.banner {
+  background: #102a43;
+  color: #fff;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+}
+
+.banner img {
+  flex-shrink: 0;
+}
+
+.banner h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.banner p {
+  margin: .25rem 0 0;
+}
+
 main {
   max-width: 80rem;
-  margin: 4rem auto;
+  margin: 2rem auto;
   padding: 0 1.5rem;
-  font-family: system-ui, sans-serif;
 }
 
 .error {

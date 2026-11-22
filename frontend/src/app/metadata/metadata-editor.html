@@ -55,11 +55,28 @@
               </option>
             }
           </select>
+        } @else if (field.kind === 'boolean') {
+          <select
+            [id]="field.name"
+            [name]="field.name"
+            [(ngModel)]="values[field.name]"
+            [required]="!field.optional"
+            [disabled]="busy()"
+          >
+            @if (field.optional) {
+              <option [ngValue]="null">None</option>
+            } @else {
+              <option [ngValue]="null">Choose</option>
+            }
+            <option [ngValue]="true">True</option>
+            <option [ngValue]="false">False</option>
+          </select>
         } @else {
           <input
             [id]="field.name"
             [name]="field.name"
             [(ngModel)]="values[field.name]"
+            [type]="field.kind === 'number' ? 'number' : 'text'"
             [required]="!field.optional"
             [maxlength]="field.maxLength ?? 255"
             [disabled]="busy()"

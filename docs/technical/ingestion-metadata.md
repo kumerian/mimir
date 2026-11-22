@@ -9,47 +9,77 @@ five tables. References are stored as foreign-key strings, not nested objects.
 
 ### Source system
 
-| Property | Key | Description |
-| --- | --- | --- |
-| Source name | Primary key | Identifies the source system. |
-| Source functional name | | Business-facing name of the source system. |
-| Source type | | Kind of source system. |
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Source name | Primary key | Identifies the source system. | false | text |
+| Source functional name | | Business-facing name of the source system. | true | text |
+| Source type | | Kind of source system. | false | text |
+| Source Owner | | The primary contact person for the source system | true | text |
+| Source application | | Name of the application this source belongs to | false | text |
+| Source Location | | Where to find this source. Content depends on Source type. E.g. an API would have the API base URL here | true | text |
+| Is Active | | Whether this source should be processed or not | false | boolean |
 
 ### Source system interface
 
-| Property | Key | Description |
-| --- | --- | --- |
-| Source name | Foreign key | References the source system's source name. |
-| Interface name | Primary key | Identifies the interface. |
-| Authentication id | Foreign key | References an authentication record's authentication id. |
-| Interface functional name | | Business-facing name of the interface. |
-| Interface type | | Kind of interface. |
-| Interface location | | Location at which the interface is accessed. |
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Source name | Foreign key | References the source system's source name. | false | text |
+| Interface name | Primary key | Identifies the interface. | false | text |
+| Authentication id | Foreign key | References an authentication record's authentication id. | false | text |
+| Interface functional name | | Business-facing name of the interface. | true | text |
+| Interface type | | Kind of interface. | false | text |
+| Interface location | | Location at which the interface is accessed. | false | text |
+| Decimal separator | | Character used as decimal separator | false | single character |
+| Thousands separator | | Character used as thousands separator | false | single character |
+| Delimiter | | Character used as delimiter in flatfile use | true | single character |
+| HasHeaders | | Whether a flatfile interface type includes a header row | true | boolean |
+| Interface Location | | Where to find this interface within the source location. E.g. API endpoint | true | text |
+| Is Active | | Whether this interface should be processed or not | false | boolean |
 
 ### Source object
 
-| Property | Key | Description |
-| --- | --- | --- |
-| Interface name | Foreign key | References the source system interface's interface name. |
-| Object name | Primary key | Identifies the source object, such as a table. |
-| Object functional name | | Business-facing name of the object. |
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Interface name | Foreign key | References the source system interface's interface name. | false | text |
+| Object name | Primary key | Identifies the source object, such as a table. | false | text |
+| Object functional name | | Business-facing name of the object. | true | text |
+| Object Description | | Description of the content of this object | true | text |
+| IsConfidential | | Whether this object contains confidential information | false | boolean |
+| IsBusinessCritical | | Whether this object contains business critical information | false | boolean |
+| Is Active | | Whether this object should be processed or not | false | boolean |
 
 ### Source column
 
-| Property | Key | Description |
-| --- | --- | --- |
-| Object name | Foreign key | References the source object's object name. |
-| Column name | Primary key | Identifies the column. |
-| Column functional name | | Business-facing name of the column. |
-| Datatype | | Source datatype of the column. |
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Object name | Foreign key | References the source object's object name. | false | text |
+| Column name | Primary key | Identifies the column. | false | text |
+| Column alternate name | | What the column is called in the source system, if different from the Column Name | true | text |
+| Column functional name | | Business-facing name of the column. | true | text |
+| Column Description | | Description of the content of the column | true | text |
+| Column ordinal position | | Position of this column in the target table | false | integer |
+| Needs Encryption | | Whether the column needs to be encrypted on storage | false | boolean |
+| Is partition field | | Whether the target storage needs to be partitioned on this column | false | boolean |
+| Partition ordinal position | What position this column takes in the partitioning | false | integer |
+| Is Key | | Whether this column contains a (part of the) key for this object | false | boolean |
+| Key ordinal position | | What position this column takes in the key | false | integer |
+| Is Nullable | | Whether NULL values are accepted in this column | false | boolean |
+| Test Datatype | | Whether to test the datatype constraints on ingestion | false | boolean |
+| Datatype | | Source datatype of the column. | false | text |
+| Character maximum length | | On a text field: Maximum number of chaaracters | true | integer |
+| Numeric scale | | How many total digits in a numeric value | true | integer |
+| Numeric precision | | How many digits after the decimal separator | true | integer |
+| Null value regex pattern | | If the value matches this regex pattern, it is replaced by NULL | true | text |
+| Is Active | | Whether this column should be processed or not | false | boolean |
 
 ### Authentication
 
-| Property | Key | Description |
-| --- | --- | --- |
-| Authentication id | Primary key | Identifies the authentication record. |
-| Authentication type | | Kind of authentication. |
-| Authentication location | | Location of the authentication material. |
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Authentication id | Primary key | Identifies the authentication record. | false | text |
+| Authentication type | | Kind of authentication. | false | text |
+| Authentication location | | Location of the authentication material. | false | text |
+| Is Active | | Whether this authentication method is active or not | false | boolean |
 
 Authentication metadata identifies where authentication material is located;
 it does not contain the material itself.
@@ -101,11 +131,11 @@ All resources are under `/api/metadata`:
 
 | Resource | JSON properties |
 | --- | --- |
-| `source-systems` | `sourceName`, `sourceFunctionalName`, `sourceType` |
-| `authentications` | `authenticationId`, `authenticationType`, `authenticationLocation` |
-| `interfaces` | `interfaceName`, `sourceName`, `authenticationId`, `interfaceFunctionalName`, `interfaceType`, `interfaceLocation` |
-| `objects` | `objectName`, `interfaceName`, `objectFunctionalName` |
-| `columns` | `columnName`, `objectName`, `columnFunctionalName`, `datatype` |
+| `source-systems` | `sourceName`, `sourceFunctionalName`, `sourceType`, `sourceOwner`, `sourceApplication`, `sourceLocation`, `isActive` |
+| `authentications` | `authenticationId`, `authenticationType`, `authenticationLocation`, `isActive` |
+| `interfaces` | `interfaceName`, `sourceName`, `authenticationId`, `interfaceFunctionalName`, `interfaceType`, `interfaceLocation`, `decimalSeparator`, `thousandsSeparator`, `delimiter`, `hasHeaders`, `isActive` |
+| `objects` | `objectName`, `interfaceName`, `objectFunctionalName`, `objectDescription`, `isConfidential`, `isBusinessCritical`, `isActive` |
+| `columns` | `columnName`, `objectName`, `columnAlternateName`, `columnFunctionalName`, `columnDescription`, `columnOrdinalPosition`, `needsEncryption`, `isPartitionField`, `partitionOrdinalPosition`, `isKey`, `keyOrdinalPosition`, `isNullable`, `testDatatype`, `datatype`, `characterMaximumLength`, `numericScale`, `numericPrecision`, `nullValueRegexPattern`, `isActive` |
 
 | Method and URL | Behavior |
 | --- | --- |

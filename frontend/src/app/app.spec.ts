@@ -22,6 +22,13 @@ describe('App', () => {
     fixture.detectChanges();
     for (const entity of ENTITIES) http.expectOne(`/api/metadata/${entity.resource}`).flush([]);
     const element = fixture.nativeElement as HTMLElement;
+    const banner = element.querySelector('header');
+    expect(banner?.querySelector('h1')?.textContent).toBe('Mimir');
+    const logo = banner?.querySelector('img');
+    expect(logo?.getAttribute('src')).toBe('mimir_logo_32x32.png');
+    expect(logo?.width).toBe(32);
+    expect(logo?.height).toBe(32);
+    expect(element.firstElementChild).toBe(banner);
     expect(element.querySelector('[role="status"]')?.textContent).toContain('Connecting');
 
     http.expectOne('/api/status').flush({ application: 'mimir', database: 'connected' });

@@ -39,17 +39,56 @@ class MetadataApiTest {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
 
-    private static final Map<String, String> SOURCE = Map.of(
-            "sourceName", "source", "sourceFunctionalName", "Source", "sourceType", "database");
-    private static final Map<String, String> AUTH = Map.of(
-            "authenticationId", "auth", "authenticationType", "vault", "authenticationLocation", "vault://mimir");
-    private static final Map<String, String> INTERFACE = Map.of(
-            "interfaceName", "interface", "sourceName", "source", "authenticationId", "auth",
-            "interfaceFunctionalName", "Interface", "interfaceType", "jdbc", "interfaceLocation", "jdbc:mariadb://source");
-    private static final Map<String, String> OBJECT = Map.of(
-            "objectName", "object", "interfaceName", "interface", "objectFunctionalName", "Object");
-    private static final Map<String, String> COLUMN = Map.of(
-            "columnName", "column", "objectName", "object", "columnFunctionalName", "Column", "datatype", "varchar");
+    private static final Map<String, Object> SOURCE = Map.of(
+            "sourceName", "source", "sourceFunctionalName", "Source", "sourceType", "database",
+            "sourceOwner", "Owner", "sourceApplication", "CRM", "sourceLocation", "https://source",
+            "isActive", true);
+    private static final Map<String, Object> AUTH = Map.of(
+            "authenticationId", "auth", "authenticationType", "vault", "authenticationLocation", "vault://mimir",
+            "isActive", true);
+    private static final Map<String, Object> INTERFACE = interfaceSample();
+    private static final Map<String, Object> OBJECT = Map.of(
+            "objectName", "object", "interfaceName", "interface", "objectFunctionalName", "Object",
+            "objectDescription", "Description", "isConfidential", false, "isBusinessCritical", true, "isActive", true);
+    private static final Map<String, Object> COLUMN = columnSample();
+    private static Map<String, Object> interfaceSample() {
+        var value = new java.util.HashMap<String, Object>();
+        value.put("interfaceName", "interface");
+        value.put("sourceName", "source");
+        value.put("authenticationId", "auth");
+        value.put("interfaceFunctionalName", "Interface");
+        value.put("interfaceType", "jdbc");
+        value.put("interfaceLocation", "jdbc:mariadb://source");
+        value.put("decimalSeparator", ".");
+        value.put("thousandsSeparator", ",");
+        value.put("delimiter", ";");
+        value.put("hasHeaders", true);
+        value.put("isActive", true);
+        return value;
+    }
+    private static Map<String, Object> columnSample() {
+        var value = new java.util.HashMap<String, Object>();
+        value.put("columnName", "column");
+        value.put("objectName", "object");
+        value.put("columnAlternateName", "col");
+        value.put("columnFunctionalName", "Column");
+        value.put("columnDescription", "Description");
+        value.put("columnOrdinalPosition", 1);
+        value.put("needsEncryption", false);
+        value.put("isPartitionField", false);
+        value.put("partitionOrdinalPosition", 0);
+        value.put("isKey", true);
+        value.put("keyOrdinalPosition", 1);
+        value.put("isNullable", false);
+        value.put("testDatatype", true);
+        value.put("datatype", "varchar");
+        value.put("characterMaximumLength", 255);
+        value.put("numericScale", null);
+        value.put("numericPrecision", null);
+        value.put("nullValueRegexPattern", null);
+        value.put("isActive", true);
+        return value;
+    }
 
     static Stream<Arguments> entities() {
         return Stream.of(
@@ -77,7 +116,7 @@ class MetadataApiTest {
 
     @ParameterizedTest
     @MethodSource("entities")
-    void crudAndImmutableKeys(String resource, String key, Map<String, String> sample, String editable) throws Exception {
+    void crudAndImmutableKeys(String resource, String key, Map<String, ?> sample, String editable) throws Exception {
         if (List.of("interfaces", "objects", "columns").contains(resource)) {
             create("source-systems", SOURCE);
             create("authentications", AUTH);
@@ -85,7 +124,7 @@ class MetadataApiTest {
         if (List.of("objects", "columns").contains(resource)) create("interfaces", INTERFACE);
         if (resource.equals("columns")) create("objects", OBJECT);
 
-        String id = sample.get(key);
+        String id = String.valueOf(sample.get(key));
         String item = path(resource) + "?id=" + id;
         mvc.perform(get(path(resource))).andExpect(status().isOk()).andExpect(content().json("[]"));
         mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(sample)))
@@ -95,7 +134,8 @@ class MetadataApiTest {
         mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(sample)))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").isNotEmpty());
 
-        var updated = new java.util.HashMap<>(sample);
+        var updated = new java.util.HashMap<String, Object>();
+        updated.putAll(sample);
         updated.put(editable, "Updated");
         mvc.perform(put(item).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(updated)))
                 .andExpect(status().isOk()).andExpect(content().json(json.writeValueAsString(updated)));
@@ -112,22 +152,38 @@ class MetadataApiTest {
 
     @ParameterizedTest
     @MethodSource("entities")
-    void validatesRequiredFieldsAndLengths(String resource, String key, Map<String, String> sample, String editable) throws Exception {
+    void validatesRequiredFieldsAndLengths(String resource, String key, Map<String, ?> sample, String editable) throws Exception {
+        if (List.of("interfaces", "objects", "columns").contains(resource)) {
+            create("source-systems", SOURCE);
+            create("authentications", AUTH);
+        }
+        if (List.of("objects", "columns").contains(resource)) create("interfaces", INTERFACE);
+        if (resource.equals("columns")) create("objects", OBJECT);
         for (String field : sample.keySet()) {
-            var invalid = new java.util.HashMap<>(sample);
+            if (!(sample.get(field) instanceof String) && sample.get(field) != null) continue;
+            boolean optional = List.of(
+                    "sourceFunctionalName", "sourceOwner", "sourceLocation",
+                    "authenticationId", "interfaceFunctionalName", "delimiter", "hasHeaders",
+                    "objectFunctionalName", "objectDescription", "columnAlternateName",
+                    "columnFunctionalName", "columnDescription", "characterMaximumLength",
+                    "numericScale", "numericPrecision", "nullValueRegexPattern").contains(field);
+            if (optional) continue;
+            var invalid = new java.util.HashMap<String, Object>();
+            invalid.putAll(sample);
             invalid.put(field, " ");
             mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(invalid)))
                     .andExpect(status().isBadRequest());
             invalid.put(field, "x".repeat(field.endsWith("Location") ? 2049 : 256));
             mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(invalid)))
                     .andExpect(status().isBadRequest());
-            if (!field.equals("authenticationId") || !resource.equals("interfaces")) {
+            if (!optional) {
                 invalid.remove(field);
                 mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(invalid)))
                         .andExpect(status().isBadRequest());
             }
         }
-        var invalid = new java.util.HashMap<>(sample);
+        var invalid = new java.util.HashMap<String, Object>();
+        invalid.putAll(sample);
         invalid.put("unexpected", "value");
         mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(invalid)))
                 .andExpect(status().isBadRequest());
@@ -171,10 +227,13 @@ class MetadataApiTest {
     @Test
     void acceptsMaximumLengthsAndSortsListsByKey() throws Exception {
         create("source-systems", Map.of("sourceName", "z".repeat(255),
-                "sourceFunctionalName", "x".repeat(255), "sourceType", "x".repeat(255)));
+                "sourceFunctionalName", "x".repeat(255), "sourceType", "x".repeat(255),
+                "sourceOwner", "Owner", "sourceApplication", "x".repeat(255),
+                "sourceLocation", "x".repeat(255), "isActive", true));
         create("source-systems", SOURCE);
         create("authentications", Map.of("authenticationId", "a".repeat(255),
-                "authenticationType", "x".repeat(255), "authenticationLocation", "x".repeat(2048)));
+                "authenticationType", "x".repeat(255), "authenticationLocation", "x".repeat(2048),
+                "isActive", true));
         mvc.perform(get(path("source-systems"))).andExpect(jsonPath("$[0].sourceName").value("source"))
                 .andExpect(jsonPath("$[1].sourceName").value("z".repeat(255)));
     }
@@ -187,18 +246,19 @@ class MetadataApiTest {
 
     @Test
     void namesWithReservedUrlCharactersRemainEditable() throws Exception {
-        var record = Map.of("sourceName", "crm/table & name+?#", "sourceFunctionalName", "CRM", "sourceType", "database");
+        var record = Map.of("sourceName", "crm/table & name+?#", "sourceFunctionalName", "CRM", "sourceType", "database",
+                "sourceOwner", "Owner", "sourceApplication", "CRM", "sourceLocation", "https://crm", "isActive", true);
         mvc.perform(post(path("source-systems")).queryParam("ignored", "value")
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(record)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
                         "http://localhost/api/metadata/source-systems?id=crm%2Ftable%20%26%20name%2B%3F%23"));
-        mvc.perform(get(path("source-systems")).param("id", record.get("sourceName")))
+        mvc.perform(get(path("source-systems")).param("id", String.valueOf(record.get("sourceName"))))
                 .andExpect(status().isOk()).andExpect(content().json(json.writeValueAsString(record)));
-        mvc.perform(put(path("source-systems")).param("id", record.get("sourceName"))
+        mvc.perform(put(path("source-systems")).param("id", String.valueOf(record.get("sourceName")))
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(record)))
                 .andExpect(status().isOk());
-        mvc.perform(delete(path("source-systems")).param("id", record.get("sourceName")))
+        mvc.perform(delete(path("source-systems")).param("id", String.valueOf(record.get("sourceName"))))
                 .andExpect(status().isNoContent());
     }
 
@@ -211,13 +271,13 @@ class MetadataApiTest {
                      new JdbcConnection(connection))) {
             liquibase.update(new Contexts(), new LabelExpression());
             try (var statement = connection.createStatement()) {
-                statement.executeUpdate("INSERT INTO source_system VALUES ('source', 'Source', 'database')");
+                statement.executeUpdate("INSERT INTO source_system VALUES ('source', 'Source', 'database', NULL, 'CRM', NULL, TRUE)");
                 liquibase.update(new Contexts(), new LabelExpression());
                 try (var rows = statement.executeQuery("SELECT COUNT(*) FROM source_system")) {
                     rows.next();
                     assertEquals(1, rows.getInt(1));
                 }
-                liquibase.rollback(1, new Contexts(), new LabelExpression());
+                liquibase.rollback(10, new Contexts(), new LabelExpression());
                 try (var tables = connection.getMetaData().getTables(null, null, "SOURCE_SYSTEM", null)) {
                     org.junit.jupiter.api.Assertions.assertFalse(tables.next());
                 }

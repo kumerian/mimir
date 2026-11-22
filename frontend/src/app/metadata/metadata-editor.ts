@@ -65,7 +65,8 @@ export class MetadataEditor {
 
   edit(record?: MetadataRecord) {
     this.values = record ? { ...record } : {};
-    this.editingId.set(record ? record[this.selected().key] : null);
+    const key = record?.[this.selected().key];
+    this.editingId.set(typeof key === 'string' ? key : null);
     this.formOpen.set(true);
     this.pendingDelete.set(null);
     this.error.set('');
@@ -87,6 +88,8 @@ export class MetadataEditor {
     return this.selected().fields.every((field) => {
       const value = this.values[field.name];
       if (field.optional && (value == null || value === '')) return true;
+      if (field.kind === 'boolean') return typeof value === 'boolean';
+      if (field.kind === 'number') return typeof value === 'number';
       return (
         typeof value === 'string' &&
         value.trim().length > 0 &&
@@ -100,7 +103,9 @@ export class MetadataEditor {
     const value: MetadataRecord = {};
     for (const field of this.selected().fields) {
       value[field.name] =
-        field.optional && !this.values[field.name] ? null : this.values[field.name];
+        field.optional && (this.values[field.name] == null || this.values[field.name] === '')
+          ? null
+          : this.values[field.name];
     }
     this.busy.set(true);
     this.error.set('');
@@ -125,7 +130,7 @@ export class MetadataEditor {
   confirmDelete() {
     const record = this.pendingDelete();
     const id = record?.[this.selected().key];
-    if (this.busy() || id == null) return;
+    if (this.busy() || typeof id !== 'string') return;
     this.busy.set(true);
     this.error.set('');
     this.api

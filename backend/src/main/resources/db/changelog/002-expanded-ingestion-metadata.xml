@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+  <changeSet id="002-source-system-expanded" author="mimir">
+    <preConditions onFail="MARK_RAN">
+      <not><columnExists tableName="source_system" columnName="source_application"/></not>
+    </preConditions>
+    <addColumn tableName="source_system">
+      <column name="source_owner" type="varchar(255)"/>
+      <column name="source_application" type="varchar(255)" defaultValue="unknown"><constraints nullable="false"/></column>
+      <column name="source_location" type="varchar(255)"/>
+      <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+    </addColumn>
+  </changeSet>
+  <changeSet id="002-source-system-nullability" author="mimir">
+    <dropNotNullConstraint tableName="source_system" columnName="source_functional_name" columnDataType="varchar(255)"/>
+  </changeSet>
+  <changeSet id="002-authentication-expanded" author="mimir">
+    <preConditions onFail="MARK_RAN">
+      <not><columnExists tableName="authentication" columnName="is_active"/></not>
+    </preConditions>
+    <addColumn tableName="authentication">
+      <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+    </addColumn>
+  </changeSet>
+  <changeSet id="002-interface-expanded" author="mimir">
+    <preConditions onFail="MARK_RAN">
+      <not><columnExists tableName="source_system_interface" columnName="decimal_separator"/></not>
+    </preConditions>
+    <addColumn tableName="source_system_interface">
+      <column name="decimal_separator" type="varchar(1)" defaultValue="."><constraints nullable="false"/></column>
+      <column name="thousands_separator" type="varchar(1)" defaultValue=","><constraints nullable="false"/></column>
+      <column name="delimiter" type="varchar(1)"/>
+      <column name="has_headers" type="boolean"/>
+      <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+    </addColumn>
+  </changeSet>
+  <changeSet id="002-interface-nullability" author="mimir">
+    <dropNotNullConstraint tableName="source_system_interface" columnName="interface_functional_name" columnDataType="varchar(255)"/>
+  </changeSet>
+  <changeSet id="002-object-expanded" author="mimir">
+    <preConditions onFail="MARK_RAN">
+      <not><columnExists tableName="source_object" columnName="is_confidential"/></not>
+    </preConditions>
+    <addColumn tableName="source_object">
+      <column name="object_description" type="varchar(255)"/>
+      <column name="is_confidential" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="is_business_critical" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+    </addColumn>
+  </changeSet>
+  <changeSet id="002-object-nullability" author="mimir">
+    <dropNotNullConstraint tableName="source_object" columnName="object_functional_name" columnDataType="varchar(255)"/>
+  </changeSet>
+  <changeSet id="002-column-expanded" author="mimir">
+    <preConditions onFail="MARK_RAN">
+      <not><columnExists tableName="source_column" columnName="column_alternate_name"/></not>
+    </preConditions>
+    <addColumn tableName="source_column">
+      <column name="column_alternate_name" type="varchar(255)"/>
+      <column name="column_description" type="varchar(255)"/>
+      <column name="column_ordinal_position" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+      <column name="needs_encryption" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="is_partition_field" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="partition_ordinal_position" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+      <column name="is_key" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="key_ordinal_position" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+      <column name="is_nullable" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="test_datatype" type="boolean" defaultValueBoolean="false"><constraints nullable="false"/></column>
+      <column name="character_maximum_length" type="integer"/>
+      <column name="numeric_scale" type="integer"/>
+      <column name="numeric_precision" type="integer"/>
+      <column name="null_value_regex_pattern" type="varchar(255)"/>
+      <column name="is_active" type="boolean" defaultValueBoolean="true"><constraints nullable="false"/></column>
+    </addColumn>
+  </changeSet>
+  <changeSet id="002-column-nullability" author="mimir">
+    <dropNotNullConstraint tableName="source_column" columnName="column_functional_name" columnDataType="varchar(255)"/>
+  </changeSet>
+</databaseChangeLog>

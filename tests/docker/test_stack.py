@@ -26,11 +26,16 @@ class DockerStackTest(unittest.TestCase):
             "sourceName": f"source/table & {suffix}",
             "sourceFunctionalName": "Integration source",
             "sourceType": "database",
+            "sourceOwner": "Integration owner",
+            "sourceApplication": "CRM",
+            "sourceLocation": "https://integration",
+            "isActive": True,
         }
         authentication = {
             "authenticationId": f"auth-{suffix}",
             "authenticationType": "vault",
             "authenticationLocation": "vault://integration/reference",
+            "isActive": True,
         }
         interface = {
             "interfaceName": f"interface-{suffix}",
@@ -39,17 +44,41 @@ class DockerStackTest(unittest.TestCase):
             "interfaceFunctionalName": "Integration interface",
             "interfaceType": "jdbc",
             "interfaceLocation": "jdbc:mariadb://source",
+            "decimalSeparator": ".",
+            "thousandsSeparator": ",",
+            "delimiter": ";",
+            "hasHeaders": True,
+            "isActive": True,
         }
         source_object = {
             "objectName": f"object-{suffix}",
             "interfaceName": interface["interfaceName"],
             "objectFunctionalName": "Integration object",
+            "objectDescription": "Integration description",
+            "isConfidential": False,
+            "isBusinessCritical": True,
+            "isActive": True,
         }
         column = {
             "columnName": f"column-{suffix}",
             "objectName": source_object["objectName"],
+            "columnAlternateName": "integration_column",
             "columnFunctionalName": "Integration column",
+            "columnDescription": "Integration column description",
+            "columnOrdinalPosition": 1,
+            "needsEncryption": False,
+            "isPartitionField": False,
+            "partitionOrdinalPosition": 0,
+            "isKey": True,
+            "keyOrdinalPosition": 1,
+            "isNullable": False,
+            "testDatatype": True,
             "datatype": "varchar(255)",
+            "characterMaximumLength": 255,
+            "numericScale": None,
+            "numericPrecision": None,
+            "nullValueRegexPattern": None,
+            "isActive": True,
         }
         entities = [
             ("source-systems", "sourceName", source),
