@@ -29,4 +29,5 @@ try {
 if (-not $failed -or $global:PrerequisiteTestCalls.Count -ne 3) {
     throw 'The Windows installer did not stop on a package installation failure.'
 }
+$global:LASTEXITCODE = 0
 Write-Host 'Windows prerequisite installer tests passed.'
