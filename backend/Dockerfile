@@ -2,6 +2,7 @@ FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 RUN --mount=type=secret,id=maven-cacerts,target=/opt/java/openjdk/lib/security/cacerts \
   ./mvnw --batch-mode --no-transfer-progress dependency:go-offline
 COPY src src

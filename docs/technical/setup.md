@@ -38,13 +38,18 @@ no domain tables, migrations, authentication, or ingestion workflows yet.
 
 ## Run the complete stack
 
-Prerequisites: GNU Make and Docker Engine with Docker Compose v2. Python 3 is required to run
-the container integration tests. Host Java and Node are not needed for Docker.
+The supported hosts are Windows, macOS, and Linux. Install GNU Make and Docker
+Engine with Docker Compose v2 (Docker Desktop can provide Docker on Windows and
+macOS). Host Java and Node are not needed to run the Docker stack.
 
 ```sh
 cp .env.example .env
 make up
 ```
+
+On Windows, run `Copy-Item .env.example .env` in PowerShell instead of `cp`.
+These commands copy the example credentials only for first-time setup; do not
+overwrite an existing `.env`.
 
 Open `http://localhost:8080`. The page reports database connectivity through the
 backend. Inspect failures with `docker compose logs --no-color`.
@@ -71,8 +76,10 @@ against a stack whose data you need to keep.
 
 ## Local application development
 
-Prerequisites: JDK 21 and Node.js 24 with npm. Maven is downloaded by the checked-in
-wrapper on first use. Angular dependencies are pinned in `package-lock.json`.
+Prerequisites: JDK 21 and Node.js 24 with npm. Set `JAVA_HOME` to the JDK
+directory, especially on Windows where the Maven wrapper requires it. Maven is
+downloaded by the checked-in wrapper on first use. Angular dependencies are pinned
+in `package-lock.json`.
 
 For Java development, start MariaDB with a development-only port override.
 Create a local file outside version control, such as `/tmp/mimir-dev-compose.yaml`:
@@ -92,6 +99,10 @@ DB_PASSWORD=local-development-password ./mvnw spring-boot:run
 
 Use the same password as `.env`. The backend defaults to the local `mimir`
 database with user `mimir`; override `DB_URL` and `DB_USER` as needed.
+On Windows, create the override file at a local path and use that path in the
+Compose command. In PowerShell, start the backend with
+`$env:DB_PASSWORD = "local-development-password"; .\mvnw.cmd spring-boot:run`
+from the `backend` directory.
 In another terminal:
 
 ```sh
@@ -107,7 +118,8 @@ first if it already occupies that port.
 ## Test suites
 
 With GNU Make, JDK 21, Node.js 24, Python 3, and Docker Compose installed, run
-all suites from the repository root:
+all suites from the repository root. Start Docker first and set `JAVA_HOME` to
+the JDK directory:
 
 ```sh
 cp .env.example .env # First use only; do not overwrite existing credentials.
@@ -118,12 +130,19 @@ make test
 runs Angular tests, then builds and tests all three containers. Docker tests use
 a unique Compose project and a dynamically assigned frontend port. Their
 containers and temporary database volume are cleaned up even if startup or
-tests fail; the normal local stack and its database are left untouched.
+tests fail; Compose logs are printed on failure. The normal local stack and its
+database are left untouched.
 `make up` builds and starts the local stack, waiting for healthy containers.
 `make down` stops it without deleting database storage. Plain `make` defaults to
 `make up`.
 
-The equivalent individual suite commands are:
+On Windows, use PowerShell or Command Prompt with GNU Make on `PATH`; use
+`Copy-Item .env.example .env` for first-time setup in PowerShell. The test target
+uses `python` on Windows and `python3` on macOS and Linux. Override it if needed,
+for example `make test PYTHON=python3`. The Windows Maven wrapper needs
+`JAVA_HOME`, not just `java` on `PATH`.
+
+The individual suite commands on macOS and Linux are:
 
 ```sh
 (cd backend && ./mvnw --batch-mode --no-transfer-progress verify)
@@ -132,6 +151,12 @@ docker compose up --build --detach --wait --wait-timeout 180
 python3 -m unittest discover -s tests/docker -v
 docker compose down
 ```
+
+On Windows, use `.\mvnw.cmd --batch-mode --no-transfer-progress verify` from
+`backend`, and `python -m unittest discover -s tests/docker -v` for the Docker
+tests. The Docker commands require the same Compose project and environment
+throughout; unlike `make test`, the individual commands above use the local
+stack and do not create or clean up an isolated test project.
 
 Java tests cover status success/failure and Spring HTTP/health integration using
 an isolated H2 database. Angular tests cover loading, the successful API response,
@@ -147,9 +172,10 @@ The test process must use the same Compose project/environment as startup.
 ## CI and build artifacts
 
 GitHub Actions runs on pull requests, pushes to `main`, and manual dispatch.
-Java and Angular tests run independently. When both pass, the Docker test job
-builds temporary `:test` images and starts all three containers for integration
-checks, emitting logs on failure and always cleaning up its resources.
+Java, Angular, and test-runner checks run on Windows, macOS, and Linux. When
+they pass, the Linux Docker test job runs `make test` end to end, building
+temporary `:test` images and starting all three containers for integration
+checks.
 
 Only after **all** tests pass does the final build job build the three images
 tagged with the commit SHA. It exports them as a compressed Docker image archive
