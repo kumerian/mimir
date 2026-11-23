@@ -8,5 +8,4 @@ All setup, development, testing, and CI documentation is in
 [docs/technical/setup.md](docs/technical/setup.md).
 
 Start all services with `make run`; run all test suites with `make test`.
-See the [metadata model and API](docs/technical/ingestion-metadata.md) and
-[frontend user guide](docs/user/ingestion-metadata.md).
+See the [metadata model and API](docs/technical/ingestion-metadata.md) and [frontend user guide](docs/user/ingestion-metadata.md). The proposed [Agile process](docs/agile/README.md) describes the team's initial working agreements and completion criteria.
