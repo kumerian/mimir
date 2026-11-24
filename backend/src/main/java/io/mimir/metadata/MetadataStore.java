@@ -1,5 +1,6 @@
 package io.mimir.metadata;
 
+import io.mimir.logging.LoggingService;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.StreamSupport;
@@ -14,9 +15,13 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class MetadataStore {
     private final JdbcAggregateTemplate template;
+    private final MetadataAuditService audit;
+    private final LoggingService logging;
 
-    public MetadataStore(JdbcAggregateTemplate template) {
+    public MetadataStore(JdbcAggregateTemplate template, MetadataAuditService audit, LoggingService logging) {
         this.template = template;
+        this.audit = audit;
+        this.logging = logging;
     }
 
     @Transactional(readOnly = true)
@@ -35,19 +40,27 @@ public class MetadataStore {
     }
 
     public <T extends Metadata.Identified> T create(T value) {
-        return template.insert(value);
+        T saved = template.insert(value);
+        audit.created(saved);
+        logging.info(MetadataStore.class, "Metadata " + value.getClass().getSimpleName() + " created");
+        return saved;
     }
 
     public <T extends Metadata.Identified> T update(String id, T value, Class<T> type) {
         if (!id.equals(value.id())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Primary keys cannot be changed");
         }
-        get(id, type);
-        return template.update(value);
+        T previous = get(id, type);
+        T saved = template.update(value);
+        audit.updated(previous, saved);
+        logging.info(MetadataStore.class, "Metadata " + value.getClass().getSimpleName() + " updated");
+        return saved;
     }
 
     public <T extends Metadata.Identified> void delete(String id, Class<T> type) {
-        get(id, type);
+        T previous = get(id, type);
         template.deleteById(id, type);
+        audit.deleted(previous);
+        logging.info(MetadataStore.class, "Metadata " + type.getSimpleName() + " deleted");
     }
 }

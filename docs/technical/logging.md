@@ -1,0 +1,9 @@
+# Logging and metadata audit
+
+The backend supports `DEBUG`, `INFO`, `WARN`, and `ERROR`, ordered from least to most severe. `INFO` is the default. Set `LOG_LEVEL` in `.env` when running Compose, or in the backend process environment for local development, to change the threshold; the same threshold applies to terminal output and rows in `application_log`. Each emitted event includes an ISO-8601 timestamp, level, source, and message. The backend logs startup, successful metadata operations, and metadata constraint or persistence failures. Messages do not contain request bodies or metadata values.
+
+Application log rows are retained indefinitely in `application_log` and can be inspected with a database client. This iteration does not expose diagnostic logs through an API or UI. A database write failure is surfaced to the caller; for a metadata write, it also rolls back the metadata transaction. The terminal event is emitted before the database insert, so a terminal message alone does not confirm that the database log was persisted.
+
+Successful metadata creates, updates, and deletes are recorded separately in `metadata_audit`, in the same transaction as the metadata change. Audit records include the operation, entity type, record identifier, UTC time, and field-level before/after details. Authentication user and credential fields and API parameter values are replaced with `[REDACTED]`. No actor is recorded because the application has no authentication. Audit records have no automatic expiration and are available through the **Metadata change history** section of the web interface and `GET /api/audit`, newest first.
+
+The API and audit history are unauthenticated. The audit view is intended for trusted local development only; do not use this scaffold with untrusted users or production secrets.

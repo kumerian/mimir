@@ -1,0 +1,42 @@
+<section aria-labelledby="audit-heading">
+  <h2 id="audit-heading">Metadata change history</h2>
+  <p>Successful metadata changes are listed newest first. Sensitive authentication and API parameter values are redacted.</p>
+  <button type="button" [disabled]="busy()" (click)="refresh()">Refresh history</button>
+  @if (busy()) {
+    <p role="status">Loading audit history...</p>
+  }
+  @if (error()) {
+    <p role="alert" class="error">{{ error() }}</p>
+  }
+  @if (!busy() && !error()) {
+    @if (entries().length) {
+      <div class="table-scroll">
+        <table>
+          <caption>Metadata changes</caption>
+          <thead>
+            <tr>
+              <th scope="col">Time (UTC)</th>
+              <th scope="col">Operation</th>
+              <th scope="col">Entity</th>
+              <th scope="col">Record</th>
+              <th scope="col">Changes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of entries(); track entry.id) {
+              <tr>
+                <td>{{ entry.occurredAt }}</td>
+                <td>{{ entry.operation }}</td>
+                <td>{{ entry.entityType }}</td>
+                <td>{{ entry.recordId }}</td>
+                <td><pre>{{ entry.details }}</pre></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p>No metadata changes have been recorded.</p>
+    }
+  }
+</section>

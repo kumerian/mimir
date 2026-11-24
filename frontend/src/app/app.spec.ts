@@ -21,6 +21,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     for (const entity of ENTITIES) http.expectOne(`/api/metadata/${entity.resource}`).flush([]);
+    http.expectOne('/api/audit').flush([]);
     const element = fixture.nativeElement as HTMLElement;
     const banner = element.querySelector('header');
     expect(banner?.querySelector('h1')?.textContent).toBe('Mimir');
@@ -43,6 +44,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     for (const entity of ENTITIES) http.expectOne(`/api/metadata/${entity.resource}`).flush([]);
+    http.expectOne('/api/audit').flush([]);
 
     http.expectOne('/api/status').flush('Unavailable', {
       status: 503,

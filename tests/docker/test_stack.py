@@ -19,8 +19,22 @@ def fetch(path):
         return response.headers, response.read().decode("utf-8")
 
 
+def database_scalar(query):
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "database", "sh", "-c",
+            'mariadb --batch --skip-column-names --execute "$1" "$MARIADB_DATABASE" '
+            '--user="$MARIADB_USER" --password="$MARIADB_PASSWORD"',
+            "mimir-test-query", query,
+        ],
+        check=True, capture_output=True, text=True,
+    )
+    return int(result.stdout.strip())
+
+
 class DockerStackTest(unittest.TestCase):
     def test_metadata_crud_relationships_and_persistence_after_restart(self):
+        application_logs_before = database_scalar("SELECT COUNT(*) FROM application_log")
         suffix = uuid.uuid4().hex
         source = {
             "sourceName": f"source/table & {suffix}",
@@ -130,6 +144,18 @@ class DockerStackTest(unittest.TestCase):
                     request("DELETE", resource, identifier=value[key])
                 self.assertEqual(referenced.exception.code, 409)
 
+            _, audit_json = fetch("/api/audit")
+            audit_entries = json.loads(audit_json)
+            self.assertTrue(any(entry["operation"] == "CREATE" for entry in audit_entries))
+            self.assertTrue(any("[REDACTED]" in entry["details"] for entry in audit_entries))
+            self.assertNotIn("local-test-credential", audit_json)
+            self.assertNotIn('"parameterValue":"v1"', audit_json)
+            persisted_log_count = database_scalar("SELECT COUNT(*) FROM application_log")
+            metadata_log_count = database_scalar(
+                "SELECT COUNT(*) FROM application_log WHERE source_name = 'MetadataStore'"
+            )
+            self.assertGreater(persisted_log_count, application_logs_before)
+
             subprocess.run(
                 ["docker", "compose", "restart", "backend"], check=True,
             )
@@ -138,6 +164,17 @@ class DockerStackTest(unittest.TestCase):
                  "--wait-timeout", "180", "backend"],
                 check=True,
             )
+            self.assertGreaterEqual(
+                database_scalar("SELECT COUNT(*) FROM application_log"), persisted_log_count,
+            )
+            self.assertEqual(
+                database_scalar(
+                    "SELECT COUNT(*) FROM application_log WHERE source_name = 'MetadataStore'"
+                ),
+                metadata_log_count,
+            )
+            _, audit_after_restart = fetch("/api/audit")
+            self.assertEqual(json.loads(audit_after_restart), audit_entries)
             for resource, key, value in entities:
                 self.assertEqual(request("GET", resource, identifier=value[key])[1], value)
                 updated = dict(value)

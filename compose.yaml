@@ -24,6 +24,7 @@ services:
       DB_URL: jdbc:mariadb://database:3306/${DB_NAME:-mimir}
       DB_USER: ${DB_USER:-mimir}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       database:
         condition: service_healthy

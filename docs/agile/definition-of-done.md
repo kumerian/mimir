@@ -7,6 +7,7 @@ Work is Done when all applicable criteria are met:
 - The agreed outcome and acceptance criteria are satisfied, and the change preserves intended existing behavior.
 - Relevant automated tests and checks have been updated with the new functionality and pass. For application changes, this includes the applicable backend, frontend, and/or Docker integration tests. The full repository suite is available through `make test`; CI also runs backend and frontend verification and the complete Docker test target on pull requests.
 - New or changed behavior has focused tests where appropriate, including important failure cases.
+- Operationally relevant application events use the shared DEBUG/INFO/WARN/ERROR levels and configured threshold; emitted events reach the terminal and durable application-log storage without exposing authentication credentials or API parameter values.
 - Directly related user, technical, or process documentation is current.
 - Known limitations, remaining work, and material risks are recorded in the appropriate backlog item or communicated with the change.
 - For backlog-tracked work, the relevant backlog item is marked Done after all applicable completion criteria are met; any unfinished follow-up is tracked separately.
@@ -19,4 +20,4 @@ Do not claim work is Done while a required test is failing, an acceptance criter
 
 The repository currently provides Java verification, Angular tests and a production build, test-runner checks, and container integration tests. Use `make test` for the complete local suite; see [technical setup](../technical/setup.md) for prerequisites and details.
 
-The backlog says the Definition of Done should improve as features are delivered. Logging is a future backlog item and is **not** a default Done criterion yet. Add such a criterion only when the relevant feature has established and delivered that practice.
+The backlog says the Definition of Done should improve as features are delivered. The Logging epic established shared levels, thresholded terminal and database logging, and sensitive-value protections; the logging criterion above is now part of the default Done quality bar.

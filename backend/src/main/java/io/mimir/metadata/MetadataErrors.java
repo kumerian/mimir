@@ -1,7 +1,6 @@
 package io.mimir.metadata;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.mimir.logging.LoggingService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.relational.core.conversion.DbActionExecutionException;
 import org.springframework.http.HttpStatus;
@@ -13,11 +12,15 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice(assignableTypes = MetadataController.class)
 public class MetadataErrors extends ResponseEntityExceptionHandler {
-    private static final Logger LOG = LoggerFactory.getLogger(MetadataErrors.class);
+    private final LoggingService logging;
+
+    public MetadataErrors(LoggingService logging) {
+        this.logging = logging;
+    }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail conflict(DataIntegrityViolationException exception) {
-        LOG.warn("Metadata constraint violation: {}", exception.getClass().getSimpleName());
+        logging.warn(MetadataErrors.class, "Metadata constraint violation");
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "A key already exists, a referenced record is missing, or this record is still referenced.");
     }
@@ -29,7 +32,7 @@ public class MetadataErrors extends ResponseEntityExceptionHandler {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(conflict(integrity));
             }
         }
-        LOG.error("Metadata persistence failed", exception);
+        logging.error(MetadataErrors.class, "Metadata persistence failed");
         return ResponseEntity.internalServerError().body(
                 ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Metadata could not be saved."));
     }

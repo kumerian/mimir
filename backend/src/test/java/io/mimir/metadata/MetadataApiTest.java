@@ -24,6 +24,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -279,8 +281,55 @@ class MetadataApiTest {
     void liquibaseOwnsSchemaAndMigrationHistory() {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM databasechangelog WHERE id = '001-ingestion-metadata'", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM databasechangelog WHERE id = '003-authentication-credentials-and-api-parameters'", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM databasechangelog WHERE id = '004-application-logging-and-metadata-audit'", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM source_column", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM api_parameter", Integer.class));
+    }
+
+    @Test
+    void auditsSuccessfulChangesAndRedactsSensitiveValues() throws Exception {
+        create("source-systems", SOURCE);
+        mvc.perform(post(path("source-systems")).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(SOURCE))).andExpect(status().isConflict());
+        var updated = new java.util.HashMap<>(SOURCE);
+        updated.put("sourceFunctionalName", "Updated source");
+        mvc.perform(put(path("source-systems/source")).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(updated))).andExpect(status().isOk());
+        mvc.perform(delete(path("source-systems/source"))).andExpect(status().isNoContent());
+
+        var auth = new java.util.HashMap<>(AUTH);
+        auth.put("authenticationUser", "audit-user-secret");
+        auth.put("authenticationCredential", "audit-credential-secret");
+        create("source-systems", SOURCE);
+        create("authentications", auth);
+        create("interfaces", INTERFACE);
+        var parameter = new java.util.HashMap<>(API_PARAMETER);
+        parameter.put("parameterValue", "audit-parameter-secret");
+        create("api-parameters", parameter);
+
+        String audit = mvc.perform(get("/api/audit"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].operation").value("CREATE"))
+                .andExpect(jsonPath("$[0].entityType").value("ApiParameter"))
+                .andExpect(jsonPath("$[0].recordId").value("parameter"))
+                .andExpect(jsonPath("$[0].details").value(org.hamcrest.Matchers.containsString("[REDACTED]")))
+                .andExpect(jsonPath("$[5].details").value(org.hamcrest.Matchers.containsString("\"before\":\"Source\"")))
+                .andExpect(jsonPath("$[5].details").value(org.hamcrest.Matchers.containsString("\"after\":\"Updated source\"")))
+                .andExpect(jsonPath("$[4].operation").value("DELETE"))
+                .andExpect(jsonPath("$[5].operation").value("UPDATE"))
+                .andExpect(jsonPath("$[6].operation").value("CREATE"))
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(audit.contains("audit-user-secret"));
+        assertFalse(audit.contains("audit-credential-secret"));
+        assertFalse(audit.contains("audit-parameter-secret"));
+
+        var logMessages = jdbc.queryForList("SELECT message FROM application_log", String.class);
+        assertTrue(logMessages.stream().anyMatch(message -> message.equals("Application started")));
+        assertTrue(logMessages.stream().anyMatch(message -> message.equals("Metadata SourceSystem created")));
+        assertTrue(logMessages.stream().noneMatch(message -> message.contains("audit-")));
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM metadata_audit WHERE operation NOT IN ('CREATE', 'UPDATE', 'DELETE')",
+                Integer.class));
     }
 
     @Test

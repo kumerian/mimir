@@ -10,12 +10,16 @@ Define and implement the levels used by application logging, and make level filt
 
 ## Acceptance criteria
 
-- The supported levels and their severity ordering are documented. At minimum, the implementation distinguishes informational, warning, and error events; any additional levels are documented.
-- Application events can be assigned an appropriate level, and the configured threshold includes events at that level or higher while excluding less severe events.
-- The default threshold and how an operator changes it are documented.
-- Tests verify that events on both sides of a configured threshold are emitted or filtered as expected.
+- [x] The supported levels and their severity ordering are documented. At minimum, the implementation distinguishes informational, warning, and error events; any additional levels are documented.
+- [x] Application events can be assigned an appropriate level, and the configured threshold includes events at that level or higher while excluding less severe events.
+- [x] The default threshold and how an operator changes it are documented.
+- [x] Tests verify that events on both sides of a configured threshold are emitted or filtered as expected.
 
-## Dependencies and open questions
+## Dependencies and implementation decisions
 
 - No dependencies.
-- Choose the default threshold and configuration mechanism during implementation; neither is established by the current backlog.
+- The default threshold is `INFO`; operators set `LOG_LEVEL` to `DEBUG`, `INFO`, `WARN`, or `ERROR`.
+
+## Implementation evidence
+
+`LOG_LEVEL` defaults to `INFO`; `DEBUG`, `INFO`, `WARN`, and `ERROR` share one threshold across terminal and database logging. See [LoggingService](../../../backend/src/main/java/io/mimir/logging/LoggingService.java), [runtime configuration](../../../backend/src/main/resources/application.yml), [Compose configuration](../../../compose.yaml), and [logging documentation](../../technical/logging.md). [LoggingServiceTest](../../../backend/src/test/java/io/mimir/logging/LoggingServiceTest.java) verifies threshold filtering and database failure propagation. `make test` passed.

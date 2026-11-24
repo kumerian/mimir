@@ -1,11 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AuditLog } from './audit/audit-log';
 import { MetadataEditor } from './metadata/metadata-editor';
 
 @Component({
   selector: 'app-root',
-  imports: [MetadataEditor],
+  imports: [MetadataEditor, AuditLog],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

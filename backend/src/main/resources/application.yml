@@ -12,6 +12,14 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       connection-timeout: 5000
+mimir:
+  logging:
+    level: ${LOG_LEVEL:INFO}
+logging:
+  level:
+    io.mimir: ${LOG_LEVEL:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %logger - %msg%n"
 management:
   endpoints:
     web:

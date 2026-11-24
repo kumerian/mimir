@@ -29,6 +29,9 @@ workflow. Authentication credentials and API parameter values are stored
 unencrypted as supplied and returned by the unauthenticated API, so only use
 trusted local-development values, not production secrets.
 
+See [logging and metadata audit](logging.md) for log-level configuration,
+database retention, and the web audit history.
+
 ## Repository layout
 
 - `backend/`: Spring Boot application, Maven wrapper, Java tests, Dockerfile.
@@ -110,10 +113,12 @@ database account is used by Java. The backend image also runs as a non-root user
 For production, supply managed secrets, TLS, access controls, and an appropriate
 external reverse proxy rather than exposing this scaffold directly.
 
-`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and `FRONTEND_PORT` are
-configurable in `.env`. Database passwords are required. `IMAGE_TAG` defaults to
-`local`. MariaDB initialization settings only apply to an empty database volume;
-changing `.env` does not rotate credentials in an existing database.
+`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `FRONTEND_PORT`, and
+`LOG_LEVEL` are configurable in `.env`. Database passwords are required.
+`LOG_LEVEL` defaults to `INFO`; see [logging and metadata audit](logging.md)
+for supported values. `IMAGE_TAG` defaults to `local`. MariaDB initialization
+settings only apply to an empty database volume; changing `.env` does not rotate
+credentials in an existing database.
 
 ```sh
 make down
