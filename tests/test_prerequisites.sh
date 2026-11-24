@@ -6,7 +6,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 id() { echo "${MOCK_UID:-0}"; }
 dpkg() { echo amd64; }
 uname() { echo x86_64; }
-sudo() { echo "sudo $*"; }
+sudo() { echo "sudo $*"; "$@"; }
 apt-get() { echo "apt-get $*"; }
 dnf() { echo "dnf $*"; }
 install() { echo "install $*"; }
@@ -27,6 +27,13 @@ brew() {
     fi
 }
 export -f id dpkg uname sudo apt-get dnf install chmod curl tee brew
+
+output=$(printf 'mock input\n' | sudo cat)
+[[ $output == *"mock input"* ]]
+if sudo false >/dev/null; then
+    echo "The sudo mock must propagate command failures." >&2
+    exit 1
+fi
 
 linux() {
     local release=$1
