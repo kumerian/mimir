@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -12,6 +13,11 @@ from scripts import run_tests
 
 class TestRunnerTest(unittest.TestCase):
     def setUp(self):
+        root = tempfile.TemporaryDirectory()
+        self.addCleanup(root.cleanup)
+        root_patch = patch("scripts.run_tests.ROOT", Path(root.name))
+        root_patch.start()
+        self.addCleanup(root_patch.stop)
         which = patch("scripts.run_tests.shutil.which", return_value="npm")
         which.start()
         self.addCleanup(which.stop)
@@ -45,6 +51,19 @@ class TestRunnerTest(unittest.TestCase):
         self.assertEqual(calls[4].args[0][-3:], ["port", "frontend", "80"])
         self.assertEqual(calls[5].args[0][1:4], ["-m", "unittest", "discover"])
         self.assertEqual(env["STACK_URL"], "http://127.0.0.1:49152")
+
+    @patch("scripts.run_tests.subprocess.run")
+    def test_creates_writable_flatfile_directory_before_compose_start(self, run):
+        def check_directory(command, **kwargs):
+            if command[:3] == ["docker", "compose", "up"]:
+                directory = Path(kwargs["env"]["FLATFILE_DIRECTORY"])
+                self.assertEqual(directory, run_tests.ROOT / "flatfiles")
+                (directory / "fixture.csv").write_text("test", encoding="utf-8")
+            return SimpleNamespace(stdout="127.0.0.1:49152\n")
+
+        run.side_effect = check_directory
+        run_tests.run_tests(["--no-build"])
+        self.assertTrue((run_tests.ROOT / "flatfiles" / "fixture.csv").is_file())
 
     @patch("scripts.run_tests.shutil.which", return_value=None)
     @patch("scripts.run_tests.subprocess.run")
