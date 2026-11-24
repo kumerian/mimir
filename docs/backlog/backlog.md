@@ -12,6 +12,11 @@
 
 ## [Logging](logging/)
 
+- [Support distinct logging levels](logging/logging-levels.md)
+- [Log to the terminal](logging/terminal-logging.md)
+- [Persist application logs in the database](logging/database-logging.md)
+- [Audit metadata changes made through the web interface](logging/metadata-change-audit.md)
+
 ## [Secrets](secrets/)
 
 ## [Production environment](production/)
