@@ -29,6 +29,7 @@ export interface ApiParameter extends MetadataRecord {
   parameterValue: string | null;
 }
 export interface SourceSystemInterface extends MetadataRecord {
+  interfaceId: string;
   interfaceName: string;
   sourceName: string;
   authenticationId: string | null;
@@ -42,8 +43,9 @@ export interface SourceSystemInterface extends MetadataRecord {
   isActive: boolean;
 }
 export interface SourceObject extends MetadataRecord {
+  objectId: string;
   objectName: string;
-  interfaceName: string;
+  interfaceId: string;
   objectFunctionalName: string;
   objectDescription: string | null;
   isConfidential: boolean;
@@ -51,8 +53,9 @@ export interface SourceObject extends MetadataRecord {
   isActive: boolean;
 }
 export interface SourceColumn extends MetadataRecord {
+  columnId: string;
   columnName: string;
-  objectName: string;
+  objectId: string;
   columnFunctionalName: string;
   columnAlternateName: string | null;
   columnDescription: string | null;
@@ -143,7 +146,7 @@ export const ENTITIES: readonly Entity[] = [
         name: 'interfaceId',
         label: 'Interface',
         reference: 'interfaces',
-        referenceKey: 'interfaceName',
+        referenceKey: 'interfaceId',
       },
       { name: 'parameterName', label: 'Parameter name' },
       { name: 'parameterValue', label: 'Parameter value', optional: true },
@@ -152,7 +155,7 @@ export const ENTITIES: readonly Entity[] = [
   {
     resource: 'interfaces',
     label: 'Interfaces',
-    key: 'interfaceName',
+    key: 'interfaceId',
     fields: [
       { name: 'interfaceName', label: 'Interface name' },
       {
@@ -181,14 +184,14 @@ export const ENTITIES: readonly Entity[] = [
   {
     resource: 'objects',
     label: 'Objects',
-    key: 'objectName',
+    key: 'objectId',
     fields: [
       { name: 'objectName', label: 'Object name' },
       {
-        name: 'interfaceName',
+        name: 'interfaceId',
         label: 'Interface',
         reference: 'interfaces',
-        referenceKey: 'interfaceName',
+        referenceKey: 'interfaceId',
       },
       { name: 'objectFunctionalName', label: 'Object functional name', optional: true },
       { name: 'objectDescription', label: 'Object description', optional: true },
@@ -200,10 +203,10 @@ export const ENTITIES: readonly Entity[] = [
   {
     resource: 'columns',
     label: 'Columns',
-    key: 'columnName',
+    key: 'columnId',
     fields: [
       { name: 'columnName', label: 'Column name' },
-      { name: 'objectName', label: 'Object', reference: 'objects', referenceKey: 'objectName' },
+      { name: 'objectId', label: 'Object', reference: 'objects', referenceKey: 'objectId' },
       { name: 'columnAlternateName', label: 'Column alternate name', optional: true },
       { name: 'columnFunctionalName', label: 'Column functional name', optional: true },
       { name: 'columnDescription', label: 'Column description', optional: true },

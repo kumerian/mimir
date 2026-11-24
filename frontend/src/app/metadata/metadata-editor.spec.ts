@@ -99,7 +99,12 @@ describe('MetadataEditor', () => {
       authenticationCredential: 'dev-credential',
       isActive: true,
     };
-    load({ authentications: [authentication], interfaces: [{ interfaceName: 'interface' }] });
+    const sourceInterface = {
+      interfaceId: 'interface-id',
+      interfaceName: 'interface',
+      sourceName: 'crm',
+    };
+    load({ authentications: [authentication], interfaces: [sourceInterface] });
     fixture.detectChanges();
     fixture.componentInstance.select(ENTITIES.find((entity) => entity.resource === 'authentications')!);
     fixture.detectChanges();
@@ -112,6 +117,71 @@ describe('MetadataEditor', () => {
     fixture.componentInstance.edit();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#interfaceId')?.textContent).toContain('interface');
+    expect(fixture.nativeElement.querySelector('#interfaceId')?.textContent).toContain('crm');
+  });
+
+  it('distinguishes same-named scoped records in lists and parent selectors', () => {
+    const fixture = TestBed.createComponent(MetadataEditor);
+    const first = { interfaceId: 'i1', interfaceName: 'shared', sourceName: 'source-a' };
+    const second = { interfaceId: 'i2', interfaceName: 'shared', sourceName: 'source-b' };
+    const firstObject = { objectId: 'o1', objectName: 'shared', interfaceId: 'i1' };
+    const secondObject = { objectId: 'o2', objectName: 'shared', interfaceId: 'i2' };
+    load({ interfaces: [first, second], objects: [firstObject, secondObject] });
+    const editor = fixture.componentInstance;
+    editor.select(ENTITIES.find((entity) => entity.resource === 'objects')!);
+    expect(editor.recordLabel(firstObject)).toBe('source-a / shared / shared');
+    expect(editor.recordLabel(secondObject)).toBe('source-b / shared / shared');
+    editor.select(ENTITIES.find((entity) => entity.resource === 'columns')!);
+    const field = ENTITIES.find((entity) => entity.resource === 'columns')!.fields.find(
+      (candidate) => candidate.name === 'objectId',
+    )!;
+    expect(editor.referenceLabel(field, firstObject)).toBe('source-a / shared / shared');
+    expect(editor.referenceLabel(field, secondObject)).toBe('source-b / shared / shared');
+    editor.select(ENTITIES.find((entity) => entity.resource === 'columns')!);
+    expect(editor.recordLabel({ columnId: 'c1', columnName: 'key', objectId: 'o1' })).toBe(
+      'source-a / shared / shared / key',
+    );
+  });
+
+  it('edits and deletes the chosen same-named interface by its stable id', async () => {
+    const fixture = TestBed.createComponent(MetadataEditor);
+    const first = {
+      interfaceId: 'i1',
+      interfaceName: 'shared',
+      sourceName: 'source-a',
+      authenticationId: null,
+      interfaceFunctionalName: 'First',
+      interfaceType: 'jdbc',
+      interfaceLocation: 'jdbc:first',
+      decimalSeparator: '.',
+      thousandsSeparator: ',',
+      delimiter: null,
+      hasHeaders: true,
+      isActive: true,
+    };
+    const second = { ...first, interfaceId: 'i2', sourceName: 'source-b', interfaceFunctionalName: 'Second' };
+    load({ interfaces: [first, second] });
+    const editor = fixture.componentInstance;
+    editor.select(ENTITIES.find((entity) => entity.resource === 'interfaces')!);
+    editor.edit(second);
+    editor.values['interfaceFunctionalName'] = 'Updated';
+    editor.save();
+
+    const update = http.expectOne('/api/metadata/interfaces?id=i2');
+    expect(update.request.method).toBe('PUT');
+    expect(update.request.body.interfaceId).toBe('i2');
+    update.flush({ ...second, interfaceFunctionalName: 'Updated' });
+    load({ interfaces: [first, { ...second, interfaceFunctionalName: 'Updated' }] });
+    await fixture.whenStable();
+
+    editor.requestDelete({ ...second, interfaceFunctionalName: 'Updated' });
+    editor.confirmDelete();
+    const deletion = http.expectOne('/api/metadata/interfaces?id=i2');
+    expect(deletion.request.method).toBe('DELETE');
+    deletion.flush(null);
+    load({ interfaces: [first] });
+    await fixture.whenStable();
+    expect(editor.records()['interfaces']).toEqual([first]);
   });
 
   it('edits without changing the key and encodes identifiers in requests', async () => {

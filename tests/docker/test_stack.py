@@ -32,6 +32,20 @@ def database_scalar(query):
     return int(result.stdout.strip())
 
 
+def database_execute(query):
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "database", "sh", "-c",
+            'mariadb --batch --skip-column-names --execute "$1" "$MARIADB_DATABASE" '
+            '--user="$MARIADB_USER" --password="$MARIADB_PASSWORD"',
+            "mimir-test-query", query,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise AssertionError(result.stderr.strip())
+
+
 class DockerStackTest(unittest.TestCase):
     def test_metadata_crud_relationships_and_persistence_after_restart(self):
         application_logs_before = database_scalar("SELECT COUNT(*) FROM application_log")
@@ -68,7 +82,7 @@ class DockerStackTest(unittest.TestCase):
         }
         source_object = {
             "objectName": f"object-{suffix}",
-            "interfaceName": interface["interfaceName"],
+            "interfaceId": None,
             "objectFunctionalName": "Integration object",
             "objectDescription": "Integration description",
             "isConfidential": False,
@@ -77,13 +91,13 @@ class DockerStackTest(unittest.TestCase):
         }
         api_parameter = {
             "parameterId": f"parameter-{suffix}",
-            "interfaceId": interface["interfaceName"],
+            "interfaceId": None,
             "parameterName": "api-version",
             "parameterValue": "v1",
         }
         column = {
             "columnName": f"column-{suffix}",
-            "objectName": source_object["objectName"],
+            "objectId": None,
             "columnAlternateName": "integration_column",
             "columnFunctionalName": "Integration column",
             "columnDescription": "Integration column description",
@@ -105,10 +119,10 @@ class DockerStackTest(unittest.TestCase):
         entities = [
             ("source-systems", "sourceName", source),
             ("authentications", "authenticationId", authentication),
-            ("interfaces", "interfaceName", interface),
+            ("interfaces", "interfaceId", interface),
             ("api-parameters", "parameterId", api_parameter),
-            ("objects", "objectName", source_object),
-            ("columns", "columnName", column),
+            ("objects", "objectId", source_object),
+            ("columns", "columnId", column),
         ]
 
         def request(method, resource, value=None, identifier=None):
@@ -128,16 +142,73 @@ class DockerStackTest(unittest.TestCase):
         try:
             for resource, key, value in entities:
                 status, body = request("POST", resource, value)
-                created.append((resource, key, value))
                 self.assertEqual(status, 201)
-                self.assertEqual(body, value)
-                self.assertEqual(request("GET", resource, identifier=value[key])[1], value)
-                self.assertIn(value, request("GET", resource)[1])
+                saved = dict(value)
+                if resource in ("interfaces", "objects", "columns"):
+                    saved[key] = body[key]
+                created.append((resource, key, saved))
+                self.assertEqual(body, saved)
+                self.assertEqual(request("GET", resource, identifier=saved[key])[1], saved)
+                self.assertIn(saved, request("GET", resource)[1])
                 with self.assertRaises(HTTPError) as duplicate:
                     request("POST", resource, value)
                 self.assertEqual(duplicate.exception.code, 409)
+                if resource == "interfaces":
+                    interface["interfaceId"] = saved["interfaceId"]
+                    api_parameter["interfaceId"] = saved["interfaceId"]
+                    source_object["interfaceId"] = saved["interfaceId"]
+                if resource == "objects":
+                    source_object["objectId"] = saved["objectId"]
+                    column["objectId"] = saved["objectId"]
 
-            for resource, key, value in entities:
+            other_source = dict(source)
+            other_source["sourceName"] += "-other"
+            status, other_source = request("POST", "source-systems", other_source)
+            self.assertEqual(status, 201)
+            created.append(("source-systems", "sourceName", other_source))
+
+            other_interface = dict(interface)
+            other_interface["sourceName"] = other_source["sourceName"]
+            status, other_interface = request("POST", "interfaces", other_interface)
+            self.assertEqual(status, 201)
+            created.append(("interfaces", "interfaceId", other_interface))
+            self.assertEqual(other_interface["interfaceName"], interface["interfaceName"])
+            with self.assertRaises(HTTPError) as duplicate_interface:
+                request("POST", "interfaces", interface)
+            self.assertEqual(duplicate_interface.exception.code, 409)
+
+            other_object = dict(source_object)
+            other_object["interfaceId"] = other_interface["interfaceId"]
+            status, other_object = request("POST", "objects", other_object)
+            self.assertEqual(status, 201)
+            created.append(("objects", "objectId", other_object))
+            self.assertEqual(other_object["objectName"], source_object["objectName"])
+            with self.assertRaises(HTTPError) as duplicate_object:
+                request("POST", "objects", other_object)
+            self.assertEqual(duplicate_object.exception.code, 409)
+
+            other_column = dict(column)
+            other_column["objectId"] = other_object["objectId"]
+            status, other_column = request("POST", "columns", other_column)
+            self.assertEqual(status, 201)
+            created.append(("columns", "columnId", other_column))
+            self.assertEqual(other_column["columnName"], column["columnName"])
+            with self.assertRaises(HTTPError) as duplicate_column:
+                request("POST", "columns", other_column)
+            self.assertEqual(duplicate_column.exception.code, 409)
+
+            other_parameter = dict(api_parameter)
+            other_parameter["parameterId"] += "-other"
+            other_parameter["interfaceId"] = other_interface["interfaceId"]
+            status, other_parameter = request("POST", "api-parameters", other_parameter)
+            self.assertEqual(status, 201)
+            created.append(("api-parameters", "parameterId", other_parameter))
+            self.assertEqual(
+                request("GET", "api-parameters", identifier=other_parameter["parameterId"])[1]["interfaceId"],
+                other_interface["interfaceId"],
+            )
+
+            for resource, key, value in created:
                 if resource in ("api-parameters", "columns"):
                     continue
                 with self.assertRaises(HTTPError) as referenced:
@@ -175,7 +246,7 @@ class DockerStackTest(unittest.TestCase):
             )
             _, audit_after_restart = fetch("/api/audit")
             self.assertEqual(json.loads(audit_after_restart), audit_entries)
-            for resource, key, value in entities:
+            for resource, key, value in created:
                 self.assertEqual(request("GET", resource, identifier=value[key])[1], value)
                 updated = dict(value)
                 functional = (
@@ -233,6 +304,103 @@ class DockerStackTest(unittest.TestCase):
                 with self.assertRaises(HTTPError) as error:
                     fetch(path)
                 self.assertEqual(error.exception.code, 404)
+
+    def test_upgrade_migrates_existing_mariadb_hierarchy_without_losing_audit(self):
+        subprocess.run(["docker", "compose", "stop", "backend"], check=True)
+        database_execute(
+            """
+            ALTER TABLE api_parameter DROP FOREIGN KEY fk_api_parameter_interface_id;
+            ALTER TABLE source_column DROP FOREIGN KEY fk_column_object_id;
+            ALTER TABLE source_object DROP FOREIGN KEY fk_object_interface_id;
+            ALTER TABLE api_parameter DROP INDEX idx_api_parameter_interface_id;
+            ALTER TABLE source_column DROP INDEX idx_column_object_id;
+            ALTER TABLE source_object DROP INDEX idx_object_interface_id;
+            ALTER TABLE source_system_interface DROP INDEX uq_interface_source_name;
+            ALTER TABLE source_object DROP INDEX uq_object_interface_name;
+            ALTER TABLE source_column DROP INDEX uq_column_object_name;
+            ALTER TABLE source_system_interface DROP PRIMARY KEY;
+            ALTER TABLE source_object DROP PRIMARY KEY;
+            ALTER TABLE source_column DROP PRIMARY KEY;
+            ALTER TABLE source_object ADD COLUMN interface_name varchar(255);
+            ALTER TABLE source_column ADD COLUMN object_name varchar(255);
+            ALTER TABLE source_system_interface DROP COLUMN interface_id;
+            ALTER TABLE source_object DROP COLUMN interface_id, DROP COLUMN object_id;
+            ALTER TABLE source_column DROP COLUMN object_id, DROP COLUMN column_id;
+            ALTER TABLE source_system_interface ADD PRIMARY KEY (interface_name);
+            ALTER TABLE source_object ADD PRIMARY KEY (object_name);
+            ALTER TABLE source_column ADD PRIMARY KEY (column_name);
+            ALTER TABLE source_object ADD CONSTRAINT fk_object_interface
+              FOREIGN KEY (interface_name) REFERENCES source_system_interface(interface_name);
+            ALTER TABLE source_column ADD CONSTRAINT fk_column_object
+              FOREIGN KEY (object_name) REFERENCES source_object(object_name);
+            ALTER TABLE api_parameter ADD CONSTRAINT fk_api_parameter_interface
+              FOREIGN KEY (interface_id) REFERENCES source_system_interface(interface_name);
+            CREATE INDEX idx_object_interface ON source_object(interface_name);
+            CREATE INDEX idx_column_object ON source_column(object_name);
+            CREATE INDEX idx_api_parameter_interface ON api_parameter(interface_id);
+            DELETE FROM DATABASECHANGELOG WHERE ID = '005-scoped-metadata-names';
+            INSERT INTO source_system (source_name, source_functional_name, source_type,
+              source_owner, source_application, source_location, is_active)
+              VALUES ('migration-source', 'Migration source', 'database', NULL, 'test', NULL, TRUE);
+            INSERT INTO source_system_interface (interface_name, source_name, authentication_id,
+              interface_functional_name, interface_type, interface_location, decimal_separator,
+              thousands_separator, delimiter, has_headers, is_active)
+              VALUES ('migration-interface', 'migration-source', NULL, 'Migration interface',
+              'jdbc', 'jdbc:test', '.', ',', NULL, TRUE, TRUE);
+            INSERT INTO source_object (object_name, interface_name, object_functional_name,
+              object_description, is_confidential, is_business_critical, is_active)
+              VALUES ('migration-object', 'migration-interface', 'Migration object', NULL,
+              FALSE, FALSE, TRUE);
+            INSERT INTO source_column (column_name, object_name, column_functional_name, datatype,
+              column_alternate_name, column_description, column_ordinal_position, needs_encryption,
+              is_partition_field, partition_ordinal_position, is_key, key_ordinal_position,
+              is_nullable, test_datatype, character_maximum_length, numeric_scale,
+              numeric_precision, null_value_regex_pattern, is_active)
+              VALUES ('migration-column', 'migration-object', 'Migration column', 'varchar',
+              NULL, NULL, 1, FALSE, FALSE, 0, FALSE, 0, TRUE, FALSE, 255, NULL, NULL, NULL, TRUE);
+            INSERT INTO api_parameter (parameter_id, interface_id, parameter_name, parameter_value)
+              VALUES ('migration-parameter', 'migration-interface', 'version', 'v1');
+            INSERT INTO metadata_audit (occurred_at, operation, entity_type, record_id, details)
+              VALUES (CURRENT_TIMESTAMP, 'CREATE', 'SourceObject', 'migration-object',
+              '{"objectName":"migration-object"}');
+            """
+        )
+        subprocess.run(
+            ["docker", "compose", "up", "--no-build", "--detach", "--wait",
+             "--wait-timeout", "180", "backend"],
+            check=True,
+        )
+        self.assertEqual(
+            database_scalar(
+                "SELECT COUNT(*) FROM source_column WHERE column_id = 'migration-column' "
+                "AND object_id = 'migration-object'"
+            ),
+            1,
+        )
+        self.assertEqual(
+            database_scalar(
+                "SELECT COUNT(*) FROM api_parameter WHERE parameter_id = 'migration-parameter' "
+                "AND interface_id = 'migration-interface'"
+            ),
+            1,
+        )
+        _, response = fetch("/api/metadata/columns?id=migration-column")
+        self.assertEqual(json.loads(response)["objectId"], "migration-object")
+        _, audit = fetch("/api/audit")
+        self.assertIn('"recordId":"migration-object"', audit)
+        subprocess.run(["docker", "compose", "restart", "backend"], check=True)
+        subprocess.run(
+            ["docker", "compose", "up", "--no-build", "--detach", "--wait",
+             "--wait-timeout", "180", "backend"],
+            check=True,
+        )
+        self.assertEqual(
+            database_scalar(
+                "SELECT COUNT(*) FROM source_column WHERE column_id = 'migration-column' "
+                "AND object_id = 'migration-object'"
+            ),
+            1,
+        )
 
 
 if __name__ == "__main__":

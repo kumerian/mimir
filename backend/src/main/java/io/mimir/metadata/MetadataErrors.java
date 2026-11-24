@@ -22,7 +22,7 @@ public class MetadataErrors extends ResponseEntityExceptionHandler {
     ProblemDetail conflict(DataIntegrityViolationException exception) {
         logging.warn(MetadataErrors.class, "Metadata constraint violation");
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                "A key already exists, a referenced record is missing, or this record is still referenced.");
+                "A name or key already exists, a referenced record is missing, or this record is still referenced.");
     }
 
     @ExceptionHandler(DbActionExecutionException.class)

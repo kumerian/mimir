@@ -17,7 +17,7 @@ Refresh succeeds.
 
 ## Create a metadata hierarchy
 
-1. Choose **Source systems**, then **New record**. Enter a globally unique source
+1. Choose **Source systems**, then **New record**. Enter a unique source
    name, source type, application, and active state. Optionally enter the functional
    name, owner, and location; select **Save**.
 2. If an interface needs authentication, create an **Authentication** first.
@@ -25,28 +25,31 @@ Refresh succeeds.
    `vault://team/crm`, and active state. The optional user and credential fields
    are stored unencrypted and returned by the unauthenticated API; use only trusted
    local-development values, never production secrets.
-3. Under **Interfaces**, create a record with a unique interface name. Select
-   its source system and optional authentication from the lists. **None**
+3. Under **Interfaces**, create a record with a name unique within its source
+   system. Select its source system and optional authentication from the lists. **None**
    means no authentication reference. Enter its functional name, type, access location, decimal and thousands
    separators, optional delimiter/header setting, and active state.
 4. For an API interface, create **API parameters** by entering a unique parameter
-   id and name, selecting its interface, and optionally entering a value. Values
+   id and name, selecting its interface by its source/interface context, and optionally entering a value. Values
    are stored unencrypted and returned by the unauthenticated API; never use
    production secrets.
-5. Under **Objects**, create an object with a unique object name, selecting its
-interface. Set confidentiality, business-critical, and active states; optionally
+5. Under **Objects**, create an object with a name unique within its interface,
+selecting the interface by its source/interface context. Set confidentiality, business-critical, and active states; optionally
 enter a functional name and description.
-6. Under **Columns**, create a column with a unique column name, datatype,
-ordinal position, encryption, partition, key, nullability, datatype-testing,
-and active settings, selecting its object. Optional fields include alternate
+6. Under **Columns**, create a column with a name unique within its object,
+datatype, ordinal position, encryption, partition, key, nullability, datatype-testing,
+and active settings, selecting the object by its full source/interface/object context. Optional fields include alternate
 name, functional name, description, ordinals, length, numeric scale and precision,
-and a null-value regex.
+and a null-value regex. Names may be reused in other parent hierarchies, and the
+editor shows the full hierarchy in lists and parent selectors.
 
 Fields marked `*` are required and cannot be whitespace-only. Names, types,
 functional names, datatypes, and references allow up to 255 characters.
 Interface and authentication locations allow up to 2048 characters. Types are
-free text. Interface, object, and column names are globally unique within their
-entity, **not** just within their parent.
+free text. Interface names are unique within a source system, object names within
+an interface, and column names within an object. Stable IDs are generated for
+interfaces, objects, and columns; changing a name or parent does not change
+these IDs or break dependent relationships. Source names remain globally unique.
 
 Save remains disabled until the fields are valid. A successful save displays
 **Record saved** and reloads the lists. **Cancel** discards an unsaved form.
@@ -54,9 +57,11 @@ There is no automatic save.
 
 ## Edit and delete
 
-Select a row's **Edit** button to change its fields and relationships. The
-primary key is read-only. To use another key, create a new record, move its
-dependent records, and delete the old record. Select **Save** to persist edits.
+Select a row's **Edit** button to change its fields and relationships. Source
+names cannot be changed; IDs for interfaces, objects, and columns are stable
+and not editable, while their names can be changed when the destination name is
+available. Reparenting preserves dependent records, and conflicts leave the
+record in its original hierarchy. Select **Save** to persist edits.
 Concurrent edits are last-write-wins; refresh before editing when others may
 be working on the same metadata.
 
@@ -68,7 +73,7 @@ system or authentication.
 
 ## Recover from errors
 
-- **Conflict**: check for a duplicate key or a missing parent. For deletion,
+- **Conflict**: check for a duplicate name under the selected parent or a missing parent. For deletion,
   remove or reassign dependent records. Cancel the form/confirmation and
   Refresh to retrieve changes made by another user.
 - **Invalid data**: check required fields, lengths, and the unchanged key.

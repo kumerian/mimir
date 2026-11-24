@@ -15,6 +15,10 @@ public final class Metadata {
         String id();
     }
 
+    public interface GeneratedId<T extends GeneratedId<T>> extends Identified {
+        T withId(String id);
+    }
+
     @Table("source_system")
     public record SourceSystem(
             @Id @Column("source_name") @NotBlank @Size(max = 255) String sourceName,
@@ -49,7 +53,8 @@ public final class Metadata {
 
     @Table("source_system_interface")
     public record SourceSystemInterface(
-            @Id @Column("interface_name") @NotBlank @Size(max = 255) String interfaceName,
+            @Id @Column("interface_id") @Size(max = 255) String interfaceId,
+            @Column("interface_name") @NotBlank @Size(max = 255) String interfaceName,
             @Column("source_name") @NotBlank @Size(max = 255) String sourceName,
             @Column("authentication_id") @Size(max = 255) @Pattern(regexp = "(?s).*\\S.*") String authenticationId,
             @Column("interface_functional_name") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String interfaceFunctionalName,
@@ -59,26 +64,36 @@ public final class Metadata {
             @Column("thousands_separator") @NotBlank @Size(min = 1, max = 1) String thousandsSeparator,
             @Column("delimiter") @Size(min = 1, max = 1) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String delimiter,
             @Column("has_headers") Boolean hasHeaders,
-            @Column("is_active") @NotNull Boolean isActive) implements Identified {
-        public String id() { return interfaceName; }
+            @Column("is_active") @NotNull Boolean isActive) implements GeneratedId<SourceSystemInterface> {
+        public String id() { return interfaceId; }
+        public SourceSystemInterface withId(String id) {
+            return new SourceSystemInterface(id, interfaceName, sourceName, authenticationId, interfaceFunctionalName,
+                    interfaceType, interfaceLocation, decimalSeparator, thousandsSeparator, delimiter, hasHeaders, isActive);
+        }
     }
 
     @Table("source_object")
     public record SourceObject(
-            @Id @Column("object_name") @NotBlank @Size(max = 255) String objectName,
-            @Column("interface_name") @NotBlank @Size(max = 255) String interfaceName,
+            @Id @Column("object_id") @Size(max = 255) String objectId,
+            @Column("object_name") @NotBlank @Size(max = 255) String objectName,
+            @Column("interface_id") @NotBlank @Size(max = 255) String interfaceId,
             @Column("object_functional_name") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String objectFunctionalName,
             @Column("object_description") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String objectDescription,
             @Column("is_confidential") @NotNull Boolean isConfidential,
             @Column("is_business_critical") @NotNull Boolean isBusinessCritical,
-            @Column("is_active") @NotNull Boolean isActive) implements Identified {
-        public String id() { return objectName; }
+            @Column("is_active") @NotNull Boolean isActive) implements GeneratedId<SourceObject> {
+        public String id() { return objectId; }
+        public SourceObject withId(String id) {
+            return new SourceObject(id, objectName, interfaceId, objectFunctionalName, objectDescription,
+                    isConfidential, isBusinessCritical, isActive);
+        }
     }
 
     @Table("source_column")
     public record SourceColumn(
-            @Id @Column("column_name") @NotBlank @Size(max = 255) String columnName,
-            @Column("object_name") @NotBlank @Size(max = 255) String objectName,
+            @Id @Column("column_id") @Size(max = 255) String columnId,
+            @Column("column_name") @NotBlank @Size(max = 255) String columnName,
+            @Column("object_id") @NotBlank @Size(max = 255) String objectId,
             @Column("column_alternate_name") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String columnAlternateName,
             @Column("column_functional_name") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String columnFunctionalName,
             @Column("column_description") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String columnDescription,
@@ -95,7 +110,13 @@ public final class Metadata {
             @Column("numeric_scale") Integer numericScale,
             @Column("numeric_precision") Integer numericPrecision,
             @Column("null_value_regex_pattern") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String nullValueRegexPattern,
-            @Column("is_active") @NotNull Boolean isActive) implements Identified {
-        public String id() { return columnName; }
+            @Column("is_active") @NotNull Boolean isActive) implements GeneratedId<SourceColumn> {
+        public String id() { return columnId; }
+        public SourceColumn withId(String id) {
+            return new SourceColumn(id, columnName, objectId, columnAlternateName, columnFunctionalName,
+                    columnDescription, columnOrdinalPosition, needsEncryption, isPartitionField,
+                    partitionOrdinalPosition, isKey, keyOrdinalPosition, isNullable, testDatatype,
+                    datatype, characterMaximumLength, numericScale, numericPrecision, nullValueRegexPattern, isActive);
+        }
     }
 }

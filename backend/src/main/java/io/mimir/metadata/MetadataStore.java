@@ -3,6 +3,7 @@ package io.mimir.metadata;
 import io.mimir.logging.LoggingService;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
@@ -39,7 +40,10 @@ public class MetadataStore {
         return value;
     }
 
-    public <T extends Metadata.Identified> T create(T value) {
+    public <T extends Metadata.Identified> T create(T value, Class<T> type) {
+        if (value instanceof Metadata.GeneratedId<?> generated) {
+            value = type.cast(generated.withId(UUID.randomUUID().toString()));
+        }
         T saved = template.insert(value);
         audit.created(saved);
         logging.info(MetadataStore.class, "Metadata " + value.getClass().getSimpleName() + " created");

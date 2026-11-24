@@ -85,6 +85,37 @@ export class MetadataEditor {
     return field.reference ? (this.records()[field.reference] ?? []) : [];
   }
 
+  recordLabel(record: MetadataRecord) {
+    const resource = this.selected().resource;
+    if (resource === 'interfaces') return this.interfaceLabel(record);
+    if (resource === 'objects') return this.objectLabel(record);
+    if (resource === 'columns') {
+      const objectId = record['objectId'];
+      const columnName = record['columnName'];
+      const objectRecord = this.findRecord('objects', 'objectId', objectId);
+      return objectRecord
+        ? `${this.objectLabel(objectRecord)} / ${columnName}`
+        : `${String(objectId ?? '')} / ${String(columnName ?? '')}`;
+    }
+    if (resource === 'api-parameters') {
+      const interfaceRecord = this.findRecord('interfaces', 'interfaceId', record['interfaceId']);
+      const parameterId = record['parameterId'];
+      const label = interfaceRecord
+        ? this.interfaceLabel(interfaceRecord)
+        : String(record['interfaceId'] ?? '');
+      return `${typeof parameterId === 'string' ? parameterId : ''} / ${label}`;
+    }
+    const value = record[this.selected().key];
+    return typeof value === 'string' ? value : '';
+  }
+
+  referenceLabel(field: Field, record: MetadataRecord) {
+    if (field.reference === 'interfaces') return this.interfaceLabel(record);
+    if (field.reference === 'objects') return this.objectLabel(record);
+    const key = field.referenceKey ? record[field.referenceKey] : null;
+    return typeof key === 'string' ? key : '';
+  }
+
   valid() {
     return this.selected().fields.every((field) => {
       const value = this.values[field.name];
@@ -114,7 +145,7 @@ export class MetadataEditor {
     const request =
       id === null
         ? this.api.create(this.selected().resource, value)
-        : this.api.update(this.selected().resource, id, value);
+        : this.api.update(this.selected().resource, id, { ...value, [this.selected().key]: id });
     request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.completed('Record saved.'),
       error: (error: HttpErrorResponse) => this.failed(error),
@@ -157,10 +188,27 @@ export class MetadataEditor {
 
   private describe(error: HttpErrorResponse) {
     if (error.status === 409)
-      return 'Conflict: the key already exists, a referenced record is missing, or the record is still in use. Refresh and check its relationships.';
+      return 'Conflict: the name already exists under this parent, a referenced record is missing, or the record is still in use. Refresh and check its relationships.';
     if (error.status === 400)
       return 'Invalid data. Check required fields, field lengths, and the unchanged primary key.';
     if (error.status === 404) return 'This record no longer exists. Cancel and refresh.';
     return 'Cannot reach the backend or complete this operation. Your changes have not been confirmed; please retry.';
+  }
+
+  private interfaceLabel(record: MetadataRecord) {
+    const sourceName = record['sourceName'];
+    const interfaceName = record['interfaceName'];
+    return `${typeof sourceName === 'string' ? sourceName : ''} / ${typeof interfaceName === 'string' ? interfaceName : ''}`;
+  }
+
+  private objectLabel(record: MetadataRecord) {
+    const interfaceRecord = this.findRecord('interfaces', 'interfaceId', record['interfaceId']);
+    const objectName = record['objectName'];
+    const label = interfaceRecord ? this.interfaceLabel(interfaceRecord) : String(record['interfaceId'] ?? '');
+    return `${label} / ${typeof objectName === 'string' ? objectName : ''}`;
+  }
+
+  private findRecord(resource: Resource, key: string, value: MetadataRecord[string]) {
+    return (this.records()[resource] ?? []).find((record) => record[key] === value) ?? null;
   }
 }

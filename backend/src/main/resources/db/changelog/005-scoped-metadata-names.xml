@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+  <changeSet id="005-scoped-metadata-names" author="mimir">
+    <addColumn tableName="source_system_interface">
+      <column name="interface_id" type="varchar(255)"/>
+    </addColumn>
+    <sql>UPDATE source_system_interface SET interface_id = interface_name</sql>
+
+    <addColumn tableName="source_object">
+      <column name="object_id" type="varchar(255)"/>
+      <column name="interface_id" type="varchar(255)"/>
+    </addColumn>
+    <sql>UPDATE source_object SET object_id = object_name</sql>
+    <sql>
+      UPDATE source_object
+      SET interface_id = (
+        SELECT interface_id
+        FROM source_system_interface
+        WHERE source_system_interface.interface_name = source_object.interface_name
+      )
+    </sql>
+
+    <addColumn tableName="source_column">
+      <column name="column_id" type="varchar(255)"/>
+      <column name="object_id" type="varchar(255)"/>
+    </addColumn>
+    <sql>UPDATE source_column SET column_id = column_name</sql>
+    <sql>
+      UPDATE source_column
+      SET object_id = (
+        SELECT object_id
+        FROM source_object
+        WHERE source_object.object_name = source_column.object_name
+      )
+    </sql>
+
+    <dropForeignKeyConstraint baseTableName="api_parameter" constraintName="fk_api_parameter_interface"/>
+    <dropForeignKeyConstraint baseTableName="source_object" constraintName="fk_object_interface"/>
+    <dropForeignKeyConstraint baseTableName="source_column" constraintName="fk_column_object"/>
+    <dropIndex tableName="source_object" indexName="idx_object_interface"/>
+    <dropIndex tableName="source_column" indexName="idx_column_object"/>
+    <dropIndex tableName="api_parameter" indexName="idx_api_parameter_interface"/>
+    <dropPrimaryKey tableName="source_system_interface"/>
+    <dropPrimaryKey tableName="source_object"/>
+    <dropPrimaryKey tableName="source_column"/>
+
+    <dropColumn tableName="source_object" columnName="interface_name"/>
+    <dropColumn tableName="source_column" columnName="object_name"/>
+
+    <addNotNullConstraint tableName="source_system_interface" columnName="interface_id" columnDataType="varchar(255)"/>
+    <addNotNullConstraint tableName="source_object" columnName="object_id" columnDataType="varchar(255)"/>
+    <addNotNullConstraint tableName="source_object" columnName="interface_id" columnDataType="varchar(255)"/>
+    <addNotNullConstraint tableName="source_column" columnName="column_id" columnDataType="varchar(255)"/>
+    <addNotNullConstraint tableName="source_column" columnName="object_id" columnDataType="varchar(255)"/>
+
+    <addPrimaryKey tableName="source_system_interface" columnNames="interface_id" constraintName="pk_interface_id"/>
+    <addPrimaryKey tableName="source_object" columnNames="object_id" constraintName="pk_object_id"/>
+    <addPrimaryKey tableName="source_column" columnNames="column_id" constraintName="pk_column_id"/>
+    <addUniqueConstraint tableName="source_system_interface" columnNames="source_name, interface_name" constraintName="uq_interface_source_name"/>
+    <addUniqueConstraint tableName="source_object" columnNames="interface_id, object_name" constraintName="uq_object_interface_name"/>
+    <addUniqueConstraint tableName="source_column" columnNames="object_id, column_name" constraintName="uq_column_object_name"/>
+
+    <addForeignKeyConstraint constraintName="fk_object_interface_id" baseTableName="source_object" baseColumnNames="interface_id" referencedTableName="source_system_interface" referencedColumnNames="interface_id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <addForeignKeyConstraint constraintName="fk_column_object_id" baseTableName="source_column" baseColumnNames="object_id" referencedTableName="source_object" referencedColumnNames="object_id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <addForeignKeyConstraint constraintName="fk_api_parameter_interface_id" baseTableName="api_parameter" baseColumnNames="interface_id" referencedTableName="source_system_interface" referencedColumnNames="interface_id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    <createIndex tableName="source_object" indexName="idx_object_interface_id"><column name="interface_id"/></createIndex>
+    <createIndex tableName="source_column" indexName="idx_column_object_id"><column name="object_id"/></createIndex>
+    <createIndex tableName="api_parameter" indexName="idx_api_parameter_interface_id"><column name="interface_id"/></createIndex>
+  </changeSet>
+</databaseChangeLog>

@@ -37,7 +37,7 @@
   @if (formOpen()) {
     <form (ngSubmit)="save()">
       <h4>{{ editingId() === null ? 'Create record' : 'Edit record' }}</h4>
-      <p>Names are globally unique within their entity. Primary keys cannot be changed.</p>
+      <p>Names are unique within their parent hierarchy. Record IDs are stable and cannot be changed.</p>
       @for (field of selected().fields; track field.name) {
         <label [for]="field.name"
           >{{ field.label }}{{ field.optional ? ' (optional)' : ' *' }}</label
@@ -53,7 +53,7 @@
             <option [ngValue]="null">{{ field.optional ? 'None' : 'Choose a record' }}</option>
             @for (option of options(field); track option) {
               <option [ngValue]="option[field.referenceKey!]">
-                {{ option[field.referenceKey!] }}
+                {{ referenceLabel(field, option) }}
               </option>
             }
           </select>
@@ -95,7 +95,7 @@
   }
   @if (pendingDelete(); as record) {
     <div role="alert">
-      <p>Delete "{{ record[selected().key] }}"? Referenced records cannot be deleted.</p>
+      <p>Delete "{{ recordLabel(record) }}"? Referenced records cannot be deleted.</p>
       <button type="button" [disabled]="busy()" (click)="confirmDelete()">Confirm delete</button>
       <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
     </div>
@@ -114,6 +114,7 @@
               @for (field of selected().fields; track field.name) {
                 <th scope="col">{{ field.label }}</th>
               }
+              <th scope="col">Full name</th>
               <th scope="col">Actions</th>
             </tr>
           </thead>
@@ -125,12 +126,13 @@
                     {{ field.sensitive && record[field.name] != null ? '********' : record[field.name] ?? 'None' }}
                   </td>
                 }
+                <td>{{ recordLabel(record) }}</td>
                 <td>
                   <button
                     type="button"
                     [disabled]="busy()"
                     (click)="edit(record)"
-                    [attr.aria-label]="'Edit ' + record[selected().key]"
+                    [attr.aria-label]="'Edit ' + recordLabel(record)"
                   >
                     Edit
                   </button>
@@ -138,7 +140,7 @@
                     type="button"
                     [disabled]="busy()"
                     (click)="requestDelete(record)"
-                    [attr.aria-label]="'Delete ' + record[selected().key]"
+                    [attr.aria-label]="'Delete ' + recordLabel(record)"
                   >
                     Delete
                   </button>

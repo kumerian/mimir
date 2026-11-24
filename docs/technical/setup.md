@@ -219,12 +219,14 @@ tests. The Docker commands require the same Compose project and environment
 throughout; unlike `make test`, the individual commands above use the local
 stack and do not create or clean up an isolated test project.
 
-Java tests cover status success/failure, HTTP/health integration, and the complete
-Liquibase-backed metadata API using isolated H2 databases. Angular tests cover
+Java tests cover status success/failure, HTTP/health integration, the complete
+Liquibase-backed metadata API using isolated H2 databases, and migration of a
+populated pre-scoped hierarchy. Angular tests cover
 loading, CRUD forms, relationship choices, validation, and visible request errors
 without a live backend. CI also runs a production Angular build on each host.
-Docker tests verify metadata CRUD, referential integrity, persistence and migration
-idempotence after a backend restart, and exactly
+Docker tests verify metadata CRUD, scoped-name uniqueness and reuse across
+parents on MariaDB, referential integrity, migration of a populated legacy
+MariaDB hierarchy, persistence and migration idempotence after backend restarts, and exactly
 three healthy containers, Angular assets, SPA navigation, real MariaDB-backed API
 access through Nginx, and correct missing-asset/API errors. They complement,
 rather than replace, the H2 tests.

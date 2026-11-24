@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+  <include file="db/changelog/001-ingestion-metadata.xml"/>
+  <include file="db/changelog/002-expanded-ingestion-metadata.xml"/>
+  <include file="db/changelog/003-authentication-credentials-and-api-parameters.xml"/>
+  <include file="db/changelog/004-application-logging-and-metadata-audit.xml"/>
+</databaseChangeLog>

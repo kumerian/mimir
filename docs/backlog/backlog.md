@@ -6,6 +6,13 @@
 
 ## [Loading data based on metadata definitions](loading-data-based-on-metadata-definitions/)
 
+- [ ] [Set up a separate database for loaded data](loading-data-based-on-metadata-definitions/loaded-data-database.md)
+- [ ] [Create a flatfile loader](loading-data-based-on-metadata-definitions/flatfile-loader.md)
+
+## [Metadata](metadata/)
+
+- [x] [Scope metadata names to their parent hierarchy](metadata/scoped-metadata-names.md)
+
 ## [Scheduling loads](scheduling-loads/)
 
 ## [Better user interface](better-user-interface/)

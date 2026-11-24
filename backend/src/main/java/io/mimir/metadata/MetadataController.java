@@ -19,8 +19,8 @@ public class MetadataController {
         this.store = store;
     }
 
-    private <T extends Identified> ResponseEntity<T> created(T value) {
-        T saved = store.create(value);
+    private <T extends Identified> ResponseEntity<T> created(T value, Class<T> type) {
+        T saved = store.create(value, type);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .replaceQuery(null).queryParam("id", "{id}").encode().buildAndExpand(saved.id()).toUri();
         return ResponseEntity.created(location).body(saved);
@@ -31,7 +31,7 @@ public class MetadataController {
     @GetMapping(value = "/source-systems", params = "id")
     public SourceSystem source(@RequestParam String id) { return store.get(id, SourceSystem.class); }
     @PostMapping("/source-systems")
-    public ResponseEntity<SourceSystem> createSource(@Valid @RequestBody SourceSystem value) { return created(value); }
+    public ResponseEntity<SourceSystem> createSource(@Valid @RequestBody SourceSystem value) { return created(value, SourceSystem.class); }
     @PutMapping("/source-systems")
     public SourceSystem updateSource(@RequestParam String id, @Valid @RequestBody SourceSystem value) { return store.update(id, value, SourceSystem.class); }
     @DeleteMapping("/source-systems")
@@ -45,7 +45,7 @@ public class MetadataController {
     @GetMapping(value = "/authentications", params = "id")
     public Authentication authentication(@RequestParam String id) { return store.get(id, Authentication.class); }
     @PostMapping("/authentications")
-    public ResponseEntity<Authentication> createAuthentication(@Valid @RequestBody Authentication value) { return created(value); }
+    public ResponseEntity<Authentication> createAuthentication(@Valid @RequestBody Authentication value) { return created(value, Authentication.class); }
     @PutMapping("/authentications")
     public Authentication updateAuthentication(@RequestParam String id, @Valid @RequestBody Authentication value) { return store.update(id, value, Authentication.class); }
     @DeleteMapping("/authentications")
@@ -59,7 +59,7 @@ public class MetadataController {
     @GetMapping(value = "/api-parameters", params = "id")
     public ApiParameter apiParameter(@RequestParam String id) { return store.get(id, ApiParameter.class); }
     @PostMapping("/api-parameters")
-    public ResponseEntity<ApiParameter> createApiParameter(@Valid @RequestBody ApiParameter value) { return created(value); }
+    public ResponseEntity<ApiParameter> createApiParameter(@Valid @RequestBody ApiParameter value) { return created(value, ApiParameter.class); }
     @PutMapping("/api-parameters")
     public ApiParameter updateApiParameter(@RequestParam String id, @Valid @RequestBody ApiParameter value) { return store.update(id, value, ApiParameter.class); }
     @DeleteMapping("/api-parameters")
@@ -73,7 +73,7 @@ public class MetadataController {
     @GetMapping(value = "/interfaces", params = "id")
     public SourceSystemInterface sourceInterface(@RequestParam String id) { return store.get(id, SourceSystemInterface.class); }
     @PostMapping("/interfaces")
-    public ResponseEntity<SourceSystemInterface> createInterface(@Valid @RequestBody SourceSystemInterface value) { return created(value); }
+    public ResponseEntity<SourceSystemInterface> createInterface(@Valid @RequestBody SourceSystemInterface value) { return created(value, SourceSystemInterface.class); }
     @PutMapping("/interfaces")
     public SourceSystemInterface updateInterface(@RequestParam String id, @Valid @RequestBody SourceSystemInterface value) { return store.update(id, value, SourceSystemInterface.class); }
     @DeleteMapping("/interfaces")
@@ -87,7 +87,7 @@ public class MetadataController {
     @GetMapping(value = "/objects", params = "id")
     public SourceObject object(@RequestParam String id) { return store.get(id, SourceObject.class); }
     @PostMapping("/objects")
-    public ResponseEntity<SourceObject> createObject(@Valid @RequestBody SourceObject value) { return created(value); }
+    public ResponseEntity<SourceObject> createObject(@Valid @RequestBody SourceObject value) { return created(value, SourceObject.class); }
     @PutMapping("/objects")
     public SourceObject updateObject(@RequestParam String id, @Valid @RequestBody SourceObject value) { return store.update(id, value, SourceObject.class); }
     @DeleteMapping("/objects")
@@ -101,7 +101,7 @@ public class MetadataController {
     @GetMapping(value = "/columns", params = "id")
     public SourceColumn column(@RequestParam String id) { return store.get(id, SourceColumn.class); }
     @PostMapping("/columns")
-    public ResponseEntity<SourceColumn> createColumn(@Valid @RequestBody SourceColumn value) { return created(value); }
+    public ResponseEntity<SourceColumn> createColumn(@Valid @RequestBody SourceColumn value) { return created(value, SourceColumn.class); }
     @PutMapping("/columns")
     public SourceColumn updateColumn(@RequestParam String id, @Valid @RequestBody SourceColumn value) { return store.update(id, value, SourceColumn.class); }
     @DeleteMapping("/columns")
