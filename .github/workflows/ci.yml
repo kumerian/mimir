@@ -104,6 +104,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           DB_PASSWORD: build-only-placeholder
           DB_ROOT_PASSWORD: build-only-placeholder
+          LOADED_DB_PASSWORD: build-only-placeholder
         run: docker compose build
       - name: Export deployable images
         run: |
