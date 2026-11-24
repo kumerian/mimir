@@ -75,6 +75,20 @@ export interface SourceColumn extends MetadataRecord {
   isActive: boolean;
 }
 
+export interface CsvMetadataResult {
+  object: SourceObject;
+  columns: SourceColumn[];
+  rowsScanned: number;
+  removedColumns: number;
+  updated: boolean;
+}
+
+export interface CsvLoadResult {
+  objectName: string;
+  tableName: string;
+  rowsLoaded: number;
+}
+
 export interface MetadataTypes {
   'source-systems': SourceSystem;
   authentications: Authentication;
@@ -237,6 +251,9 @@ export class MetadataApi {
   list<R extends Resource>(resource: R) {
     return this.http.get<MetadataTypes[R][]>(this.url(resource));
   }
+  get<R extends Resource>(resource: R, id: string) {
+    return this.http.get<MetadataTypes[R]>(this.url(resource, id));
+  }
   create(resource: Resource, value: MetadataRecord) {
     return this.http.post<MetadataRecord>(this.url(resource), value);
   }
@@ -245,5 +262,11 @@ export class MetadataApi {
   }
   delete(resource: Resource, id: string) {
     return this.http.delete<void>(this.url(resource, id));
+  }
+  deriveCsvMetadata(interfaceId: string) {
+    return this.http.post<CsvMetadataResult>(`/api/loader/interfaces/${encodeURIComponent(interfaceId)}/metadata`, {});
+  }
+  loadCsv(interfaceId: string) {
+    return this.http.post<CsvLoadResult>(`/api/loader/interfaces/${encodeURIComponent(interfaceId)}/load`, {});
   }
 }

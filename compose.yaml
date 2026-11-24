@@ -33,6 +33,8 @@ services:
       LOADED_DB_USER: ${LOADED_DB_USER:-mimir_loader}
       LOADED_DB_PASSWORD: ${LOADED_DB_PASSWORD:?Set LOADED_DB_PASSWORD in .env}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ${FLATFILE_DIRECTORY:-./flatfiles}:/data:ro
     depends_on:
       database:
         condition: service_healthy

@@ -9,6 +9,13 @@ button {
   padding: 0.5rem 0.75rem;
   cursor: pointer;
 }
+a.button {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #767676;
+  border-radius: 2px;
+  color: inherit;
+}
 button:disabled {
   cursor: default;
 }

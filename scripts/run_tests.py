@@ -46,6 +46,7 @@ def run_tests(up_flags):
         DB_PASSWORD=secrets.token_hex(32),
         DB_ROOT_PASSWORD=secrets.token_hex(32),
         LOADED_DB_PASSWORD=secrets.token_hex(32) + "'" + "\\" + "$",
+        FLATFILE_DIRECTORY=str(ROOT / "flatfiles"),
         LOG_LEVEL="INFO",
     )
     compose = ["docker", "compose"]

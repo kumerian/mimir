@@ -6,5 +6,6 @@
 **/.angular/
 **/__pycache__/
 .env
+/flatfiles/
 *.tsbuildinfo
 *.log

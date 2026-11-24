@@ -29,6 +29,10 @@ Refresh succeeds.
    system. Select its source system and optional authentication from the lists. **None**
    means no authentication reference. Enter its functional name, type, access location, decimal and thousands
    separators, optional delimiter/header setting, and active state.
+   For a CSV file, use interface type `CSV` or `Flatfile`, set **Has headers** to
+   true, and enter its backend path such as `/data/customers.csv`. By default,
+   Compose mounts the host's `./flatfiles` directory read-only at `/data`; change
+   `FLATFILE_DIRECTORY` in `.env` to use another host folder.
 4. For an API interface, create **API parameters** by entering a unique parameter
    id and name, selecting its interface by its source/interface context, and optionally entering a value. Values
    are stored unencrypted and returned by the unauthenticated API; never use
@@ -42,6 +46,37 @@ and active settings, selecting the object by its full source/interface/object co
 name, functional name, description, ordinals, length, numeric scale and precision,
 and a null-value regex. Names may be reused in other parent hierarchies, and the
 editor shows the full hierarchy in lists and parent selectors.
+
+## Derive metadata and load a CSV
+
+After saving a CSV/Flatfile Interface, choose **Details** in its Interfaces row.
+Select **Create/update Object and Columns** to read the header and data rows.
+The Object name is set to the Interface name. Columns follow header order; the
+loader trims header whitespace, removes a UTF-8 BOM from the first header, and
+rejects blank, duplicate, or overlength names and inconsistent row widths.
+Datatype inference recognizes booleans, integers, decimals using the Interface's
+decimal/thousands separators, ISO dates, and ISO local date-times; uncertain
+values use `VARCHAR`, while text too long for `VARCHAR` uses `MEDIUMTEXT`.
+Repeating metadata derivation updates matching Columns, adds new ones, and
+removes Columns no longer present while preserving existing Column settings
+that are not inferred.
+
+Select **Load CSV data** to append data rows to the loaded-data database. The
+header is not loaded. Empty cells become SQL `NULL`. The Object's stable ID
+determines its physical destination table name, avoiding collisions between
+same-named Objects under different Sources. Tables are created from saved Column
+metadata and rows are written transactionally. If a table already exists, its
+Column order, names, datatypes, and nullability must still match; schema drift
+is rejected. Repeated completed loads append another copy of the file's rows.
+The buttons are disabled while a request is running, and the backend rejects a
+second concurrent load for the same Interface. Failed loads report that a table
+may already have been created; data rows from the failed load are rolled back.
+
+Only CSV/Flatfile interfaces with a header are supported. CSV files are read as
+UTF-8 using the configured delimiter (comma when unset) and standard double-quote
+escaping. Locations must be file paths accessible to the backend container;
+host files outside `FLATFILE_DIRECTORY` are not mounted by default. Remote URLs,
+headerless files, schema drift, and safe-access controls are not supported yet.
 
 Fields marked `*` are required and cannot be whitespace-only. Names, types,
 functional names, datatypes, and references allow up to 255 characters.

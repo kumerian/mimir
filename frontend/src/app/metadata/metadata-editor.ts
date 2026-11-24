@@ -2,12 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ENTITIES, Entity, Field, MetadataApi, MetadataRecord, Resource } from './metadata-api';
 
 @Component({
   selector: 'app-metadata-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './metadata-editor.html',
   styleUrl: './metadata-editor.css',
 })

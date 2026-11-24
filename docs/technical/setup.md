@@ -102,7 +102,7 @@ overwrite an existing `.env`.
 
 `make run` is an alias for `make up` and starts the entire suite of application
 services. Open `http://localhost:8080`. The page reports database connectivity and
-provides the [metadata editor](../user/ingestion-metadata.md). Inspect failures
+provides the [metadata editor and CSV loader](../user/ingestion-metadata.md). Inspect failures
 with `docker compose logs --no-color`. Liquibase upgrades the database at backend
 startup; retain existing volumes when deploying new application versions.
 
@@ -114,8 +114,8 @@ For production, supply managed secrets, TLS, access controls, and an appropriate
 external reverse proxy rather than exposing this scaffold directly.
 
 `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `LOADED_DB_NAME`,
-`LOADED_DB_USER`, `LOADED_DB_PASSWORD`, `FRONTEND_PORT`, and `LOG_LEVEL` are
-configurable in `.env`. Database passwords are required.
+`LOADED_DB_USER`, `LOADED_DB_PASSWORD`, `FLATFILE_DIRECTORY`, `FRONTEND_PORT`,
+and `LOG_LEVEL` are configurable in `.env`. Database passwords are required.
 `LOG_LEVEL` defaults to `INFO`; see [logging and metadata audit](logging.md)
 for supported values. `IMAGE_TAG` defaults to `local`. MariaDB initialization
 creates the metadata schema on an empty volume. The custom database entrypoint
@@ -128,6 +128,10 @@ Changes to either database's root credentials are not applied to an existing
 volume automatically; the configured root password must match the one already
 stored in MariaDB. The loaded-data account password is reconciled from
 `LOADED_DB_PASSWORD` at each database start.
+The host directory in `FLATFILE_DIRECTORY` (default `./flatfiles`) is mounted
+read-only into the backend at `/data`. Set a CSV Interface location to the
+container path, for example `/data/customers.csv`; the browser's host path is
+not available to the backend unless it is under this mounted directory.
 
 ```sh
 make down

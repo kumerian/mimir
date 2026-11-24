@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration(proxyBeanMethods = false)
 public class DatabaseConfiguration {
@@ -49,5 +51,17 @@ public class DatabaseConfiguration {
     @Bean
     JdbcTemplate loadedDataJdbcTemplate(@Qualifier("loadedDataDataSource") DataSource dataSource) {
         return new JdbcTemplate(dataSource);
+    }
+
+    @Bean
+    @Primary
+    PlatformTransactionManager transactionManager(@Qualifier("dataSource") DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+
+    @Bean(name = "loadedDataTransactionManager")
+    PlatformTransactionManager loadedDataTransactionManager(
+            @Qualifier("loadedDataDataSource") DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
     }
 }

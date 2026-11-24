@@ -1,8 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { ENTITIES } from './metadata/metadata-api';
+import { routes } from './app.routes';
 
 describe('App', () => {
   let http: HttpTestingController;
@@ -10,7 +12,7 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -19,6 +21,7 @@ describe('App', () => {
 
   it('shows loading, then displays the database status from the backend', async () => {
     const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl('/');
     fixture.detectChanges();
     for (const entity of ENTITIES) http.expectOne(`/api/metadata/${entity.resource}`).flush([]);
     http.expectOne('/api/audit').flush([]);
@@ -42,6 +45,7 @@ describe('App', () => {
 
   it('displays an explicit error when the backend request fails', async () => {
     const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl('/');
     fixture.detectChanges();
     for (const entity of ENTITIES) http.expectOne(`/api/metadata/${entity.resource}`).flush([]);
     http.expectOne('/api/audit').flush([]);

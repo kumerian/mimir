@@ -1,0 +1,77 @@
+<section aria-labelledby="interface-details-heading">
+  <a routerLink="/">Back to metadata</a>
+  @if (loading()) {
+    <p role="status">Loading Interface details...</p>
+  }
+  @if (error()) {
+    <p role="alert" class="error">{{ error() }}</p>
+  }
+  @if (sourceInterface(); as source) {
+    <h2 id="interface-details-heading">{{ source.sourceName }} / {{ source.interfaceName }}</h2>
+    <dl>
+      <dt>Type</dt>
+      <dd>{{ source.interfaceType }}</dd>
+      <dt>Location</dt>
+      <dd>{{ source.interfaceLocation }}</dd>
+      <dt>Delimiter</dt>
+      <dd>{{ source.delimiter ?? ',' }}</dd>
+      <dt>Header row</dt>
+      <dd>{{ source.hasHeaders === false ? 'No' : 'Yes' }}</dd>
+    </dl>
+    @if (supportsCsv()) {
+      <div class="actions">
+        <button type="button" [disabled]="loading() || operation() !== null" (click)="deriveMetadata()">
+          Create/update Object and Columns
+        </button>
+        <button type="button" [disabled]="loading() || operation() !== null" (click)="loadData()">
+          Load CSV data
+        </button>
+        <button type="button" [disabled]="loading() || operation() !== null" (click)="refresh()">
+          Refresh
+        </button>
+      </div>
+    } @else {
+      <p>The CSV loader supports only CSV and Flatfile Interfaces.</p>
+    }
+    @if (operation()) {
+      <p role="status">
+        {{ operation() === 'metadata' ? 'Creating or updating metadata...' : 'Loading CSV data...' }}
+      </p>
+    }
+    @if (message()) {
+      <p role="status">{{ message() }}</p>
+    }
+    @if (objects().length) {
+      <h3>Objects and Columns</h3>
+      @for (object of objects(); track object.objectId) {
+        <h4>{{ object.objectName }}</h4>
+        @if (columnsFor(object.objectId).length) {
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Position</th>
+                  <th scope="col">Column</th>
+                  <th scope="col">Datatype</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (column of columnsFor(object.objectId); track column.columnId) {
+                  <tr>
+                    <td>{{ column.columnOrdinalPosition }}</td>
+                    <td>{{ column.columnName }}</td>
+                    <td>{{ column.datatype }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p>No Columns defined.</p>
+        }
+      }
+    } @else {
+      <p>No Objects defined. Create/update metadata from the CSV header to continue.</p>
+    }
+  }
+</section>

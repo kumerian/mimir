@@ -1,6 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
+import { routes } from '../app.routes';
 import { ENTITIES, MetadataRecord } from './metadata-api';
 import { MetadataEditor } from './metadata-editor';
 
@@ -19,7 +21,7 @@ describe('MetadataEditor', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MetadataEditor],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

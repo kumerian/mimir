@@ -1,0 +1,51 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+button,
+a {
+  padding: 0.5rem 0.75rem;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+}
+
+dt {
+  font-weight: bold;
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #ccc;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: #b00020;
+}

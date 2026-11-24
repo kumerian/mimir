@@ -9,14 +9,34 @@ import uuid
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from pathlib import Path
 
 
 BASE_URL = os.environ.get("STACK_URL", "http://127.0.0.1:8080").rstrip("/")
+ROOT = Path(__file__).resolve().parents[2]
+FLATFILE_DIRECTORY = Path(os.environ.get("FLATFILE_DIRECTORY", ROOT / "flatfiles"))
 
 
 def fetch(path):
     with urlopen(f"{BASE_URL}{path}", timeout=10) as response:
         return response.headers, response.read().decode("utf-8")
+
+
+def api_request(method, path, value=None):
+    data = None if value is None else json.dumps(value).encode("utf-8")
+    request = Request(
+        f"{BASE_URL}{path}",
+        data=data,
+        method=method,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            body = response.read().decode("utf-8")
+            return response.status, json.loads(body) if body else None
+    except HTTPError as error:
+        body = error.read().decode("utf-8")
+        return error.code, json.loads(body) if body else None
 
 
 def database_query(query):
@@ -93,6 +113,155 @@ def loaded_data_execute(query):
 
 
 class DockerStackTest(unittest.TestCase):
+    def test_flatfile_loader_derives_metadata_and_loads_csv_rows(self):
+        FLATFILE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        suffix = uuid.uuid4().hex
+        filename = f"loader-{suffix}.csv"
+        file = FLATFILE_DIRECTORY / filename
+        source_name = f"loader-source-{suffix}"
+        interface_id = None
+        object_id = None
+        table = None
+        file.write_text(
+            "name;amount;active\n\"Acme; Inc.\";1,234.50;true\nBeta;2.50;false\n",
+            encoding="utf-8",
+        )
+        try:
+            status, _ = api_request("POST", "/api/metadata/source-systems", {
+                "sourceName": source_name,
+                "sourceFunctionalName": "CSV source",
+                "sourceType": "flatfile",
+                "sourceOwner": "Integration",
+                "sourceApplication": "Mimir test",
+                "sourceLocation": "/data",
+                "isActive": True,
+            })
+            self.assertEqual(status, 201)
+            status, source_interface = api_request("POST", "/api/metadata/interfaces", {
+                "interfaceName": "sample",
+                "sourceName": source_name,
+                "authenticationId": None,
+                "interfaceFunctionalName": "CSV interface",
+                "interfaceType": "csv",
+                "interfaceLocation": f"/data/{filename}",
+                "decimalSeparator": ".",
+                "thousandsSeparator": ",",
+                "delimiter": ";",
+                "hasHeaders": True,
+                "isActive": True,
+            })
+            self.assertEqual(status, 201)
+            interface_id = source_interface["interfaceId"]
+
+            status, metadata = api_request(
+                "POST", f"/api/loader/interfaces/{interface_id}/metadata", {},
+            )
+            self.assertEqual(status, 200, metadata)
+            self.assertEqual(metadata["object"]["objectName"], "sample")
+            object_id = metadata["object"]["objectId"]
+            self.assertEqual(
+                [(column["columnName"], column["columnOrdinalPosition"]) for column in metadata["columns"]],
+                [("name", 1), ("amount", 2), ("active", 3)],
+            )
+            self.assertEqual(
+                [column["datatype"] for column in metadata["columns"]],
+                ["VARCHAR(10)", "DECIMAL(6,2)", "BOOLEAN"],
+            )
+
+            status, loaded = api_request("POST", f"/api/loader/interfaces/{interface_id}/load", {})
+            self.assertEqual(status, 200, loaded)
+            self.assertEqual(loaded["rowsLoaded"], 2)
+            table = loaded["tableName"]
+            self.assertEqual(loaded_data_scalar(f"SELECT COUNT(*) FROM `{table}`"), "2")
+            self.assertEqual(
+                loaded_data_scalar(f"SELECT amount FROM `{table}` WHERE name = 'Acme; Inc.'"),
+                "1234.50",
+            )
+            self.assertEqual(
+                database_scalar(
+                    "SELECT COUNT(*) FROM information_schema.tables "
+                    f"WHERE table_schema = DATABASE() AND table_name = '{table}'"
+                ),
+                0,
+            )
+
+            file.write_text("changed;header\nignored;row\n", encoding="utf-8")
+            status, failure = api_request("POST", f"/api/loader/interfaces/{interface_id}/load", {})
+            self.assertEqual(status, 409)
+            self.assertIn("header", failure["detail"])
+            self.assertEqual(loaded_data_scalar(f"SELECT COUNT(*) FROM `{table}`"), "2")
+        finally:
+            if object_id:
+                _, columns = api_request("GET", "/api/metadata/columns")
+                for column in columns:
+                    if column["objectId"] == object_id:
+                        api_request(
+                            "DELETE",
+                            f"/api/metadata/columns?{urlencode({'id': column['columnId']})}",
+                        )
+                api_request(
+                    "DELETE",
+                    f"/api/metadata/objects?{urlencode({'id': object_id})}",
+                )
+            if interface_id:
+                api_request(
+                    "DELETE",
+                    f"/api/metadata/interfaces?{urlencode({'id': interface_id})}",
+                )
+            api_request(
+                "DELETE",
+                f"/api/metadata/source-systems?{urlencode({'id': source_name})}",
+            )
+            if table:
+                database_admin_execute(f"DROP TABLE IF EXISTS loaded_data.`{table}`")
+            file.unlink(missing_ok=True)
+
+    def test_flatfile_loader_reports_missing_files_and_invalid_headers(self):
+        suffix = uuid.uuid4().hex
+        source_name = f"loader-failure-source-{suffix}"
+        interface_id = None
+        try:
+            status, _ = api_request("POST", "/api/metadata/source-systems", {
+                "sourceName": source_name,
+                "sourceFunctionalName": "CSV source",
+                "sourceType": "flatfile",
+                "sourceOwner": "Integration",
+                "sourceApplication": "Mimir test",
+                "sourceLocation": "/data",
+                "isActive": True,
+            })
+            self.assertEqual(status, 201)
+            status, source_interface = api_request("POST", "/api/metadata/interfaces", {
+                "interfaceName": "missing",
+                "sourceName": source_name,
+                "authenticationId": None,
+                "interfaceFunctionalName": "Missing CSV",
+                "interfaceType": "csv",
+                "interfaceLocation": f"/data/missing-{suffix}.csv",
+                "decimalSeparator": ".",
+                "thousandsSeparator": ",",
+                "delimiter": ";",
+                "hasHeaders": True,
+                "isActive": True,
+            })
+            self.assertEqual(status, 201)
+            interface_id = source_interface["interfaceId"]
+            status, failure = api_request(
+                "POST", f"/api/loader/interfaces/{interface_id}/metadata", {},
+            )
+            self.assertEqual(status, 400)
+            self.assertIn("cannot be read", failure["detail"])
+        finally:
+            if interface_id:
+                api_request(
+                    "DELETE",
+                    f"/api/metadata/interfaces?{urlencode({'id': interface_id})}",
+                )
+            api_request(
+                "DELETE",
+                f"/api/metadata/source-systems?{urlencode({'id': source_name})}",
+            )
+
     def test_loaded_data_database_is_separate_permissioned_and_persistent(self):
         suffix = uuid.uuid4().hex
         table_name = f"persistence_{suffix}"

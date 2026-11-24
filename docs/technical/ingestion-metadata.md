@@ -128,8 +128,9 @@ constraints enforce scoped names, and foreign keys use stable IDs to identify
 the exact parent. Non-nullable text fields must be nonblank; optional
 fields may be null, not empty. Descriptive fields and references have a
 255-character maximum; interface and authentication locations allow 2048.
-Types and datatypes are free text, not predefined enums. Locations are metadata;
-the application does not access them. Authentication user and credential values,
+Types and datatypes are free text, not predefined enums. The CSV loader reads
+only CSV/Flatfile Interface locations accessible inside the backend container;
+other locations remain metadata. Authentication user and credential values,
 and API parameter values, are stored unencrypted as supplied and returned by the
 REST API. The API has no login or authorization layer, so only use trusted
 local-development values; do not store production secrets.
@@ -176,6 +177,13 @@ All resources are under `/api/metadata`:
 | `PUT /api/metadata/{resource}?id={encoded-id}` | Replace an existing record with the complete JSON object; HTTP 200 with body. |
 | `DELETE /api/metadata/{resource}?id={encoded-id}` | Delete an unreferenced record; HTTP 204 with no body. |
 
+The CSV loader provides two actions for a saved Interface:
+
+| Method and URL | Behavior |
+| --- | --- |
+| `POST /api/loader/interfaces/{interfaceId}/metadata` | Read a UTF-8 CSV with a header, infer Column datatypes from its data rows, and create or reconcile the Object named after the Interface and its Columns. |
+| `POST /api/loader/interfaces/{interfaceId}/load` | Create the destination table if needed and append rows to the loaded-data database table associated with the Object ID. A concurrent load for the same Interface and schema drift are rejected. |
+
 The query parameter avoids path-separator restrictions for identifiers. URL-encode
 IDs, including spaces, `+`, `&`, `?`, and `#`. Interface POST requests omit
 `interfaceId`, object POST requests omit `objectId`, and column POST requests
@@ -200,13 +208,16 @@ curl 'http://localhost:8080/api/metadata/source-systems?id=crm'
 
 The API has no login or authorization layer. Keep the default loopback binding;
 add deployment access controls before use on shared or public infrastructure.
-This implementation manages metadata only, not ingestion execution.
+Only CSV/Flatfile Interfaces can derive metadata and load data; see the
+[frontend user guide](../user/ingestion-metadata.md) for parsing, datatype, and
+destination-table behavior.
 
 ## Tests and user instructions
 
 Java integration tests run the Liquibase schema on H2 in MariaDB mode and
 exercise CRUD, validation boundaries, scoped names, relationships, nullable/shared
-authentication, API parameters, reparenting, existing-schema migration, and Problem Detail failures. Angular tests exercise
+authentication, API parameters, reparenting, CSV metadata derivation and data
+loading, existing-schema migration, and Problem Detail failures. Angular tests exercise
 the editor's views, HTTP operations, selectors, validation, confirmation, and
 error/retry states. Docker tests exercise all six resources through Nginx on
 real MariaDB, then restart the backend to verify migration idempotence and data

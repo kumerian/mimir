@@ -7,7 +7,7 @@
 ## [Loading data based on metadata definitions](loading-data-based-on-metadata-definitions/)
 
 - [x] [Set up a separate database for loaded data](loading-data-based-on-metadata-definitions/loaded-data-database.md)
-- [ ] [Create a flatfile loader](loading-data-based-on-metadata-definitions/flatfile-loader.md)
+- [x] [Create a flatfile loader](loading-data-based-on-metadata-definitions/flatfile-loader.md)
 
 ## [Metadata](metadata/)
 
