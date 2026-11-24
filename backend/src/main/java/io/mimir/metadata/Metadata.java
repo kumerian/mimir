@@ -32,8 +32,19 @@ public final class Metadata {
             @Id @Column("authentication_id") @NotBlank @Size(max = 255) String authenticationId,
             @Column("authentication_type") @NotBlank @Size(max = 255) String authenticationType,
             @Column("authentication_location") @NotBlank @Size(max = 2048) String authenticationLocation,
+            @Column("authentication_user") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String authenticationUser,
+            @Column("authentication_credential") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String authenticationCredential,
             @Column("is_active") @NotNull Boolean isActive) implements Identified {
         public String id() { return authenticationId; }
+    }
+
+    @Table("api_parameter")
+    public record ApiParameter(
+            @Id @Column("parameter_id") @NotBlank @Size(max = 255) String parameterId,
+            @Column("interface_id") @NotBlank @Size(max = 255) String interfaceId,
+            @Column("parameter_name") @NotBlank @Size(max = 255) String parameterName,
+            @Column("parameter_value") @Size(max = 255) @Pattern(regexp = "(?s)(?:.*\\S.*)?") String parameterValue) implements Identified {
+        public String id() { return parameterId; }
     }
 
     @Table("source_system_interface")

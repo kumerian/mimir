@@ -3,7 +3,7 @@
 This document describes the logical model for ingestion metadata and its
 implemented database schema, Spring Boot object model, REST API, and frontend.
 Liquibase owns the schema; Spring Data JDBC maps immutable Java records to the
-five tables. References are stored as foreign-key strings, not nested objects.
+six tables. References are stored as foreign-key strings, not nested objects.
 
 ## Entities
 
@@ -79,10 +79,22 @@ five tables. References are stored as foreign-key strings, not nested objects.
 | Authentication id | Primary key | Identifies the authentication record. | false | text |
 | Authentication type | | Kind of authentication. | false | text |
 | Authentication location | | Location of the authentication material. | false | text |
+| Authentication user | | Username to authenticate with | true | text |
+| Authentication credential | | Credential to authenticate with | true | text |
 | Is Active | | Whether this authentication method is active or not | false | boolean |
 
-Authentication metadata identifies where authentication material is located;
-it does not contain the material itself.
+Location contains different information based on Authentication type. For example,
+with Authentication type 'Bearer token' the location is the URL to call to retrieve
+the token; with 'license file' it is the local folder and filename of the license file.
+
+### API parameters
+
+| Property | Key | Description | Nullable | Datatype |
+| --- | --- | --- | -- | -- |
+| Parameter id | Primary key | Identifies the API parameter. | false | text |
+| Interface id | Foreign key | References the interface that uses this parameter. | false | text |
+| Parameter name | | Name of the parameter | false | text |
+| Parameter value | | Value of the parameter to be passed to the API | true | text |
 
 ## Relationships and identity
 
@@ -94,6 +106,7 @@ it does not contain the material itself.
 - An interface's authentication id references an authentication record.
   Multiple interfaces may reference the same record; authentication is optional
   for each interface in this implementation.
+- Multiple API parameters can reference the same Interface.
 
 The specified primary keys are individual names, not composite keys. Interface,
 object, and column names must therefore each be unique across all records of
@@ -102,18 +115,21 @@ their respective entity, not just within their parent.
 ## Physical schema and validation
 
 Tables are `source_system`, `source_system_interface`, `source_object`,
-`source_column`, and `authentication`. Columns use snake_case equivalents of
-the properties above. Every primary key is an immutable `VARCHAR(255)` string.
-All fields are required and nonblank except an interface's `authentication_id`,
-which may be null (not an empty string). Descriptive fields and references have
-a 255-character maximum; interface and authentication locations allow 2048.
+`source_column`, `authentication`, and `api_parameter`. Columns use snake_case
+equivalents of the properties above. Every primary key is an immutable
+`VARCHAR(255)` string. Non-nullable text fields must be nonblank; optional
+fields may be null, not empty. Descriptive fields and references have a
+255-character maximum; interface and authentication locations allow 2048.
 Types and datatypes are free text, not predefined enums. Locations are metadata;
-the application does not access them or store credential material.
+the application does not access them. Authentication user and credential values,
+and API parameter values, are stored unencrypted as supplied and returned by the
+REST API. The API has no login or authorization layer, so only use trusted
+local-development values; do not store production secrets.
 
 Database primary keys enforce global uniqueness within each table. Foreign keys
 are indexed and reject missing parents and deletion of referenced records.
-There is no cascading deletion: delete columns, then objects, then interfaces,
-then their source systems or authentication references. Updates may change
+There is no cascading deletion: delete columns, then objects and API parameters,
+then interfaces, then their source systems or authentication references. Updates may change
 descriptions and references, but not primary keys. Edits use last-write-wins;
 there is no record version or multi-user edit lock.
 
@@ -132,7 +148,8 @@ All resources are under `/api/metadata`:
 | Resource | JSON properties |
 | --- | --- |
 | `source-systems` | `sourceName`, `sourceFunctionalName`, `sourceType`, `sourceOwner`, `sourceApplication`, `sourceLocation`, `isActive` |
-| `authentications` | `authenticationId`, `authenticationType`, `authenticationLocation`, `isActive` |
+| `authentications` | `authenticationId`, `authenticationType`, `authenticationLocation`, `authenticationUser`, `authenticationCredential`, `isActive` |
+| `api-parameters` | `parameterId`, `interfaceId`, `parameterName`, `parameterValue` |
 | `interfaces` | `interfaceName`, `sourceName`, `authenticationId`, `interfaceFunctionalName`, `interfaceType`, `interfaceLocation`, `decimalSeparator`, `thousandsSeparator`, `delimiter`, `hasHeaders`, `isActive` |
 | `objects` | `objectName`, `interfaceName`, `objectFunctionalName`, `objectDescription`, `isConfidential`, `isBusinessCritical`, `isActive` |
 | `columns` | `columnName`, `objectName`, `columnAlternateName`, `columnFunctionalName`, `columnDescription`, `columnOrdinalPosition`, `needsEncryption`, `isPartitionField`, `partitionOrdinalPosition`, `isKey`, `keyOrdinalPosition`, `isNullable`, `testDatatype`, `datatype`, `characterMaximumLength`, `numericScale`, `numericPrecision`, `nullValueRegexPattern`, `isActive` |
@@ -171,9 +188,9 @@ This implementation manages metadata only, not ingestion execution.
 
 Java integration tests run the real Liquibase schema on H2 in MariaDB mode and
 exercise CRUD, validation boundaries, global keys, relationships, nullable/shared
-authentication, reparenting, and Problem Detail failures. Angular tests exercise
+authentication, API parameters, reparenting, and Problem Detail failures. Angular tests exercise
 the editor's views, HTTP operations, selectors, validation, confirmation, and
-error/retry states. Docker tests exercise all five resources through Nginx on
+error/retry states. Docker tests exercise all six resources through Nginx on
 real MariaDB, then restart the backend to verify migration idempotence and data
 persistence. Run all suites with `make test`; see [setup](setup.md).
 

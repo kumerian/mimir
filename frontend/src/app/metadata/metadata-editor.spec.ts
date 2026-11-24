@@ -79,14 +79,39 @@ describe('MetadataEditor', () => {
   it('uses reference selectors populated from parent records', async () => {
     const fixture = TestBed.createComponent(MetadataEditor);
     load({ 'source-systems': [source] });
-    fixture.componentInstance.select(ENTITIES[2]);
+    fixture.componentInstance.select(ENTITIES.find((entity) => entity.resource === 'interfaces')!);
     fixture.componentInstance.edit();
     fixture.detectChanges();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('#sourceName')?.textContent).toContain('crm');
     expect(element.querySelector('#authenticationId')?.textContent).toContain('None');
-    expect(element.textContent).toContain('Never enter passwords or tokens');
+    expect(element.textContent).toContain('production secrets');
+  });
+
+  it('masks authentication credentials in lists and uses password inputs', async () => {
+    const fixture = TestBed.createComponent(MetadataEditor);
+    const authentication = {
+      authenticationId: 'auth',
+      authenticationType: 'basic',
+      authenticationLocation: 'local',
+      authenticationUser: 'user',
+      authenticationCredential: 'dev-credential',
+      isActive: true,
+    };
+    load({ authentications: [authentication], interfaces: [{ interfaceName: 'interface' }] });
+    fixture.detectChanges();
+    fixture.componentInstance.select(ENTITIES.find((entity) => entity.resource === 'authentications')!);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('tbody').textContent).toContain('********');
+    expect(fixture.nativeElement.querySelector('tbody').textContent).not.toContain('dev-credential');
+    fixture.nativeElement.querySelector('[aria-label="Edit auth"]').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#authenticationCredential').type).toBe('password');
+    fixture.componentInstance.select(ENTITIES.find((entity) => entity.resource === 'api-parameters')!);
+    fixture.componentInstance.edit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#interfaceId')?.textContent).toContain('interface');
   });
 
   it('edits without changing the key and encodes identifiers in requests', async () => {

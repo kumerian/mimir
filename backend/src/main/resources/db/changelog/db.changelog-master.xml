@@ -4,4 +4,5 @@
                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
   <include file="001-ingestion-metadata.xml" relativeToChangelogFile="true"/>
   <include file="002-expanded-ingestion-metadata.xml" relativeToChangelogFile="true"/>
+  <include file="003-authentication-credentials-and-api-parameters.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

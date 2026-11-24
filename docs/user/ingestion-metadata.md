@@ -7,10 +7,10 @@ Open `http://localhost:8080` (or the configured frontend port). The page shows
 the Mimir banner with its 32x32 logo, and the browser tab uses the Mimir favicon.
 Below the banner are
 database connectivity and an **Ingestion metadata** editor. Choose **Source
-systems**, **Authentications**, **Interfaces**, **Objects**, or **Columns** to
+systems**, **Authentications**, **API parameters**, **Interfaces**, **Objects**, or **Columns** to
 view all records of that kind.
 
-An empty view displays **No records yet**. **Refresh** reloads all five lists
+An empty view displays **No records yet**. **Refresh** reloads all six lists
 and relationship choices. Loading or writes temporarily disable actions.
 If loading fails, the editor displays an error and disables creation until
 Refresh succeeds.
@@ -22,15 +22,21 @@ Refresh succeeds.
    name, owner, and location; select **Save**.
 2. If an interface needs authentication, create an **Authentication** first.
    Enter an id, type, location of the authentication material, such as
-   `vault://team/crm`, and active state. **Never enter passwords, tokens, or credential contents**.
+   `vault://team/crm`, and active state. The optional user and credential fields
+   are stored unencrypted and returned by the unauthenticated API; use only trusted
+   local-development values, never production secrets.
 3. Under **Interfaces**, create a record with a unique interface name. Select
    its source system and optional authentication from the lists. **None**
-   means no authentication reference.    Enter its functional name, type, access location, decimal and thousands
+   means no authentication reference. Enter its functional name, type, access location, decimal and thousands
    separators, optional delimiter/header setting, and active state.
-4. Under **Objects**, create an object with a unique object name, selecting its
+4. For an API interface, create **API parameters** by entering a unique parameter
+   id and name, selecting its interface, and optionally entering a value. Values
+   are stored unencrypted and returned by the unauthenticated API; never use
+   production secrets.
+5. Under **Objects**, create an object with a unique object name, selecting its
 interface. Set confidentiality, business-critical, and active states; optionally
 enter a functional name and description.
-5. Under **Columns**, create a column with a unique column name, datatype,
+6. Under **Columns**, create a column with a unique column name, datatype,
 ordinal position, encryption, partition, key, nullability, datatype-testing,
 and active settings, selecting its object. Optional fields include alternate
 name, functional name, description, ordinals, length, numeric scale and precision,
@@ -56,8 +62,9 @@ be working on the same metadata.
 
 Select **Delete**, review the named record, and select **Confirm delete**.
 **Cancel** leaves it unchanged. Referenced records cannot be deleted. Remove
-or reassign dependent columns first, then objects, then interfaces, before
-deleting a source system or authentication.
+or reassign dependent columns, API parameters, and objects before deleting
+their parent records. Remove or reassign interfaces before deleting a source
+system or authentication.
 
 ## Recover from errors
 

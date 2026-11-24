@@ -25,7 +25,9 @@ before starting Java, and Java health before starting Nginx.
 The [ingestion metadata model](ingestion-metadata.md) is implemented with
 Liquibase migrations, Spring Data JDBC records, CRUD REST endpoints, and an
 Angular editor. There is no login/authentication layer or ingestion execution
-workflow; authentication records contain only references to credential locations.
+workflow. Authentication credentials and API parameter values are stored
+unencrypted as supplied and returned by the unauthenticated API, so only use
+trusted local-development values, not production secrets.
 
 ## Repository layout
 

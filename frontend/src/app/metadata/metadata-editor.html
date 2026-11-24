@@ -1,8 +1,10 @@
 <section aria-labelledby="metadata-heading">
   <h2 id="metadata-heading">Ingestion metadata</h2>
   <p>
-    Define source systems, authentication references, interfaces, objects, and columns.
-    Authentication locations are references only. Never enter passwords or tokens here.
+    Define source systems, authentication settings, API parameters, interfaces, objects, and
+    columns. Authentication credentials and API parameter values are stored unencrypted and
+    returned by the unauthenticated API; use only trusted local-development values and never enter
+    production secrets.
   </p>
   <nav aria-label="Metadata entities">
     @for (entity of entities; track entity.resource) {
@@ -76,12 +78,12 @@
             [id]="field.name"
             [name]="field.name"
             [(ngModel)]="values[field.name]"
-            [type]="field.kind === 'number' ? 'number' : 'text'"
+            [type]="field.kind === 'password' ? 'password' : field.kind === 'number' ? 'number' : 'text'"
             [required]="!field.optional"
             [maxlength]="field.maxLength ?? 255"
             [disabled]="busy()"
             [readOnly]="editingId() !== null && field.name === selected().key"
-            autocomplete="off"
+            [attr.autocomplete]="field.kind === 'password' ? 'new-password' : 'off'"
           />
         }
       }
@@ -119,7 +121,9 @@
             @for (record of records()[selected().resource]; track record[selected().key]) {
               <tr>
                 @for (field of selected().fields; track field.name) {
-                  <td>{{ record[field.name] ?? 'None' }}</td>
+                  <td>
+                    {{ field.sensitive && record[field.name] != null ? '********' : record[field.name] ?? 'None' }}
+                  </td>
                 }
                 <td>
                   <button

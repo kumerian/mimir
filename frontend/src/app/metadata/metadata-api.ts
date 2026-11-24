@@ -18,7 +18,15 @@ export interface Authentication extends MetadataRecord {
   authenticationId: string;
   authenticationType: string;
   authenticationLocation: string;
+  authenticationUser: string | null;
+  authenticationCredential: string | null;
   isActive: boolean;
+}
+export interface ApiParameter extends MetadataRecord {
+  parameterId: string;
+  interfaceId: string;
+  parameterName: string;
+  parameterValue: string | null;
 }
 export interface SourceSystemInterface extends MetadataRecord {
   interfaceName: string;
@@ -67,6 +75,7 @@ export interface SourceColumn extends MetadataRecord {
 export interface MetadataTypes {
   'source-systems': SourceSystem;
   authentications: Authentication;
+  'api-parameters': ApiParameter;
   interfaces: SourceSystemInterface;
   objects: SourceObject;
   columns: SourceColumn;
@@ -77,10 +86,11 @@ export interface Field {
   name: string;
   label: string;
   optional?: boolean;
-  kind?: 'text' | 'boolean' | 'number';
+  kind?: 'text' | 'boolean' | 'number' | 'password';
   reference?: Resource;
   referenceKey?: string;
   maxLength?: number;
+  sensitive?: boolean;
 }
 export interface Entity {
   resource: Resource;
@@ -112,7 +122,31 @@ export const ENTITIES: readonly Entity[] = [
       { name: 'authenticationId', label: 'Authentication id' },
       { name: 'authenticationType', label: 'Authentication type' },
       { name: 'authenticationLocation', label: 'Authentication location', maxLength: 2048 },
+      { name: 'authenticationUser', label: 'Authentication user', optional: true },
+      {
+        name: 'authenticationCredential',
+        label: 'Authentication credential',
+        optional: true,
+        kind: 'password',
+        sensitive: true,
+      },
       { name: 'isActive', label: 'Is active', kind: 'boolean' },
+    ],
+  },
+  {
+    resource: 'api-parameters',
+    label: 'API parameters',
+    key: 'parameterId',
+    fields: [
+      { name: 'parameterId', label: 'Parameter id' },
+      {
+        name: 'interfaceId',
+        label: 'Interface',
+        reference: 'interfaces',
+        referenceKey: 'interfaceName',
+      },
+      { name: 'parameterName', label: 'Parameter name' },
+      { name: 'parameterValue', label: 'Parameter value', optional: true },
     ],
   },
   {

@@ -35,6 +35,8 @@ class DockerStackTest(unittest.TestCase):
             "authenticationId": f"auth-{suffix}",
             "authenticationType": "vault",
             "authenticationLocation": "vault://integration/reference",
+            "authenticationUser": "integration-user",
+            "authenticationCredential": "local-test-credential",
             "isActive": True,
         }
         interface = {
@@ -58,6 +60,12 @@ class DockerStackTest(unittest.TestCase):
             "isConfidential": False,
             "isBusinessCritical": True,
             "isActive": True,
+        }
+        api_parameter = {
+            "parameterId": f"parameter-{suffix}",
+            "interfaceId": interface["interfaceName"],
+            "parameterName": "api-version",
+            "parameterValue": "v1",
         }
         column = {
             "columnName": f"column-{suffix}",
@@ -84,6 +92,7 @@ class DockerStackTest(unittest.TestCase):
             ("source-systems", "sourceName", source),
             ("authentications", "authenticationId", authentication),
             ("interfaces", "interfaceName", interface),
+            ("api-parameters", "parameterId", api_parameter),
             ("objects", "objectName", source_object),
             ("columns", "columnName", column),
         ]
@@ -114,7 +123,9 @@ class DockerStackTest(unittest.TestCase):
                     request("POST", resource, value)
                 self.assertEqual(duplicate.exception.code, 409)
 
-            for resource, key, value in entities[:-1]:
+            for resource, key, value in entities:
+                if resource in ("api-parameters", "columns"):
+                    continue
                 with self.assertRaises(HTTPError) as referenced:
                     request("DELETE", resource, identifier=value[key])
                 self.assertEqual(referenced.exception.code, 409)
@@ -132,6 +143,7 @@ class DockerStackTest(unittest.TestCase):
                 updated = dict(value)
                 functional = (
                     "authenticationType" if resource == "authentications"
+                    else "parameterName" if resource == "api-parameters"
                     else next(field for field in value if field.endswith("FunctionalName"))
                 )
                 updated[functional] = "Updated"

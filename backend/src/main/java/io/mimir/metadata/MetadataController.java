@@ -54,6 +54,20 @@ public class MetadataController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping(value = "/api-parameters", params = "!id")
+    public List<ApiParameter> apiParameters() { return store.list(ApiParameter.class); }
+    @GetMapping(value = "/api-parameters", params = "id")
+    public ApiParameter apiParameter(@RequestParam String id) { return store.get(id, ApiParameter.class); }
+    @PostMapping("/api-parameters")
+    public ResponseEntity<ApiParameter> createApiParameter(@Valid @RequestBody ApiParameter value) { return created(value); }
+    @PutMapping("/api-parameters")
+    public ApiParameter updateApiParameter(@RequestParam String id, @Valid @RequestBody ApiParameter value) { return store.update(id, value, ApiParameter.class); }
+    @DeleteMapping("/api-parameters")
+    public ResponseEntity<Void> deleteApiParameter(@RequestParam String id) {
+        store.delete(id, ApiParameter.class);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping(value = "/interfaces", params = "!id")
     public List<SourceSystemInterface> interfaces() { return store.list(SourceSystemInterface.class); }
     @GetMapping(value = "/interfaces", params = "id")

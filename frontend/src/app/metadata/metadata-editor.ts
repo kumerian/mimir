@@ -38,6 +38,7 @@ export class MetadataEditor {
     forkJoin({
       'source-systems': this.api.list('source-systems'),
       authentications: this.api.list('authentications'),
+      'api-parameters': this.api.list('api-parameters'),
       interfaces: this.api.list('interfaces'),
       objects: this.api.list('objects'),
       columns: this.api.list('columns'),

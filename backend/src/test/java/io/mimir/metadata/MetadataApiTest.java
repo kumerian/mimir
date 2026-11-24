@@ -45,8 +45,12 @@ class MetadataApiTest {
             "isActive", true);
     private static final Map<String, Object> AUTH = Map.of(
             "authenticationId", "auth", "authenticationType", "vault", "authenticationLocation", "vault://mimir",
+            "authenticationUser", "service-user", "authenticationCredential", "credential-reference",
             "isActive", true);
     private static final Map<String, Object> INTERFACE = interfaceSample();
+    private static final Map<String, Object> API_PARAMETER = Map.of(
+            "parameterId", "parameter", "interfaceId", "interface", "parameterName", "api-version",
+            "parameterValue", "v1");
     private static final Map<String, Object> OBJECT = Map.of(
             "objectName", "object", "interfaceName", "interface", "objectFunctionalName", "Object",
             "objectDescription", "Description", "isConfidential", false, "isBusinessCritical", true, "isActive", true);
@@ -94,6 +98,7 @@ class MetadataApiTest {
         return Stream.of(
                 Arguments.of("source-systems", "sourceName", SOURCE, "sourceFunctionalName"),
                 Arguments.of("authentications", "authenticationId", AUTH, "authenticationType"),
+                Arguments.of("api-parameters", "parameterId", API_PARAMETER, "parameterName"),
                 Arguments.of("interfaces", "interfaceName", INTERFACE, "interfaceFunctionalName"),
                 Arguments.of("objects", "objectName", OBJECT, "objectFunctionalName"),
                 Arguments.of("columns", "columnName", COLUMN, "datatype"));
@@ -117,11 +122,11 @@ class MetadataApiTest {
     @ParameterizedTest
     @MethodSource("entities")
     void crudAndImmutableKeys(String resource, String key, Map<String, ?> sample, String editable) throws Exception {
-        if (List.of("interfaces", "objects", "columns").contains(resource)) {
+        if (List.of("interfaces", "objects", "columns", "api-parameters").contains(resource)) {
             create("source-systems", SOURCE);
             create("authentications", AUTH);
         }
-        if (List.of("objects", "columns").contains(resource)) create("interfaces", INTERFACE);
+        if (List.of("objects", "columns", "api-parameters").contains(resource)) create("interfaces", INTERFACE);
         if (resource.equals("columns")) create("objects", OBJECT);
 
         String id = String.valueOf(sample.get(key));
@@ -153,21 +158,21 @@ class MetadataApiTest {
     @ParameterizedTest
     @MethodSource("entities")
     void validatesRequiredFieldsAndLengths(String resource, String key, Map<String, ?> sample, String editable) throws Exception {
-        if (List.of("interfaces", "objects", "columns").contains(resource)) {
+        if (List.of("interfaces", "objects", "columns", "api-parameters").contains(resource)) {
             create("source-systems", SOURCE);
             create("authentications", AUTH);
         }
-        if (List.of("objects", "columns").contains(resource)) create("interfaces", INTERFACE);
+        if (List.of("objects", "columns", "api-parameters").contains(resource)) create("interfaces", INTERFACE);
         if (resource.equals("columns")) create("objects", OBJECT);
         for (String field : sample.keySet()) {
-            if (!(sample.get(field) instanceof String) && sample.get(field) != null) continue;
+            if (!(sample.get(field) instanceof String)) continue;
             boolean optional = List.of(
                     "sourceFunctionalName", "sourceOwner", "sourceLocation",
+                    "authenticationUser", "authenticationCredential", "parameterValue",
                     "authenticationId", "interfaceFunctionalName", "delimiter", "hasHeaders",
                     "objectFunctionalName", "objectDescription", "columnAlternateName",
                     "columnFunctionalName", "columnDescription", "characterMaximumLength",
                     "numericScale", "numericPrecision", "nullValueRegexPattern").contains(field);
-            if (optional) continue;
             var invalid = new java.util.HashMap<String, Object>();
             invalid.putAll(sample);
             invalid.put(field, " ");
@@ -191,12 +196,14 @@ class MetadataApiTest {
 
     @Test
     void enforcesAllForeignKeysAndRestrictsDeletion() throws Exception {
-        for (var entry : Map.of("interfaces", INTERFACE, "objects", OBJECT, "columns", COLUMN).entrySet()) {
+        for (var entry : Map.of("interfaces", INTERFACE, "objects", OBJECT, "columns", COLUMN,
+                "api-parameters", API_PARAMETER).entrySet()) {
             mvc.perform(post(path(entry.getKey())).contentType(MediaType.APPLICATION_JSON)
                     .content(json.writeValueAsBytes(entry.getValue()))).andExpect(status().isConflict());
         }
         parents();
         create("columns", COLUMN);
+        create("api-parameters", API_PARAMETER);
         for (String item : List.of("source-systems/source", "authentications/auth", "interfaces/interface", "objects/object")) {
             mvc.perform(delete(path(item))).andExpect(status().isConflict());
         }
@@ -205,6 +212,10 @@ class MetadataApiTest {
         mvc.perform(put(path("interfaces/interface")).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsBytes(invalidAuth))).andExpect(status().isConflict());
         mvc.perform(get(path("interfaces/interface"))).andExpect(jsonPath("$.authenticationId").value("auth"));
+        var invalidInterface = new java.util.HashMap<>(API_PARAMETER);
+        invalidInterface.put("interfaceId", "missing");
+        mvc.perform(post(path("api-parameters")).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(invalidInterface))).andExpect(status().isConflict());
     }
 
     @Test
@@ -213,6 +224,7 @@ class MetadataApiTest {
         var second = new java.util.HashMap<>(INTERFACE);
         second.put("interfaceName", "second");
         create("interfaces", second);
+        create("api-parameters", API_PARAMETER);
         second.remove("authenticationId");
         mvc.perform(put(path("interfaces/second")).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsBytes(second))).andExpect(status().isOk()).andExpect(jsonPath("$.authenticationId").isEmpty());
@@ -220,8 +232,32 @@ class MetadataApiTest {
         moved.put("interfaceName", "second");
         mvc.perform(put(path("objects/object")).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsBytes(moved))).andExpect(status().isOk());
+        mvc.perform(delete(path("api-parameters/parameter"))).andExpect(status().isNoContent());
         mvc.perform(delete(path("interfaces/interface"))).andExpect(status().isNoContent());
         mvc.perform(delete(path("authentications/auth"))).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void allowsNullAuthenticationCredentialsAndApiParameterValues() throws Exception {
+        create("source-systems", SOURCE);
+        var authentication = new java.util.HashMap<>(AUTH);
+        authentication.put("authenticationId", "auth-without-credentials");
+        authentication.put("authenticationUser", null);
+        authentication.put("authenticationCredential", null);
+        create("authentications", authentication);
+        var sourceInterface = new java.util.HashMap<>(INTERFACE);
+        sourceInterface.put("authenticationId", "auth-without-credentials");
+        create("interfaces", sourceInterface);
+        var parameter = new java.util.HashMap<>(API_PARAMETER);
+        parameter.put("parameterValue", null);
+        mvc.perform(post(path("api-parameters")).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(parameter)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.parameterValue").isEmpty());
+        mvc.perform(get(path("authentications/auth-without-credentials")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticationUser").isEmpty())
+                .andExpect(jsonPath("$.authenticationCredential").isEmpty());
     }
 
     @Test
@@ -233,6 +269,7 @@ class MetadataApiTest {
         create("source-systems", SOURCE);
         create("authentications", Map.of("authenticationId", "a".repeat(255),
                 "authenticationType", "x".repeat(255), "authenticationLocation", "x".repeat(2048),
+                "authenticationUser", "x".repeat(255), "authenticationCredential", "x".repeat(255),
                 "isActive", true));
         mvc.perform(get(path("source-systems"))).andExpect(jsonPath("$[0].sourceName").value("source"))
                 .andExpect(jsonPath("$[1].sourceName").value("z".repeat(255)));
@@ -241,7 +278,9 @@ class MetadataApiTest {
     @Test
     void liquibaseOwnsSchemaAndMigrationHistory() {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM databasechangelog WHERE id = '001-ingestion-metadata'", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM databasechangelog WHERE id = '003-authentication-credentials-and-api-parameters'", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM source_column", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM api_parameter", Integer.class));
     }
 
     @Test
@@ -277,7 +316,7 @@ class MetadataApiTest {
                     rows.next();
                     assertEquals(1, rows.getInt(1));
                 }
-                liquibase.rollback(10, new Contexts(), new LabelExpression());
+                liquibase.rollback(20, new Contexts(), new LabelExpression());
                 try (var tables = connection.getMetaData().getTables(null, null, "SOURCE_SYSTEM", null)) {
                     org.junit.jupiter.api.Assertions.assertFalse(tables.next());
                 }
