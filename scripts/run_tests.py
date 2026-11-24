@@ -39,6 +39,8 @@ def run_tests(up_flags):
     subprocess.run([*npm_command, "ci"], cwd=ROOT / "frontend", check=True)
     subprocess.run([*npm_command, "test"], cwd=ROOT / "frontend", check=True)
 
+    flatfile_directory = ROOT / "flatfiles"
+    flatfile_directory.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
     env.update(
         COMPOSE_PROJECT_NAME=f"mimir-test-{uuid.uuid4().hex}",
@@ -46,7 +48,7 @@ def run_tests(up_flags):
         DB_PASSWORD=secrets.token_hex(32),
         DB_ROOT_PASSWORD=secrets.token_hex(32),
         LOADED_DB_PASSWORD=secrets.token_hex(32) + "'" + "\\" + "$",
-        FLATFILE_DIRECTORY=str(ROOT / "flatfiles"),
+        FLATFILE_DIRECTORY=str(flatfile_directory),
         LOG_LEVEL="INFO",
     )
     compose = ["docker", "compose"]
