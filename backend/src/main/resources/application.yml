@@ -13,6 +13,13 @@ spring:
     hikari:
       connection-timeout: 5000
 mimir:
+  loaded-data:
+    datasource:
+      url: ${LOADED_DB_URL:jdbc:mariadb://localhost:3306/loaded_data}
+      username: ${LOADED_DB_USER:mimir_loader}
+      password: ${LOADED_DB_PASSWORD}
+      hikari:
+        connection-timeout: 5000
   logging:
     level: ${LOG_LEVEL:INFO}
 logging:

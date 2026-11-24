@@ -8,10 +8,15 @@ services:
       MARIADB_USER: ${DB_USER:-mimir}
       MARIADB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+      LOADED_DB_NAME: ${LOADED_DB_NAME:-loaded_data}
+      LOADED_DB_USER: ${LOADED_DB_USER:-mimir_loader}
+      LOADED_DB_PASSWORD: ${LOADED_DB_PASSWORD:?Set LOADED_DB_PASSWORD in .env}
     volumes:
       - database-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD="$$LOADED_DB_PASSWORD" mariadb --user="$$LOADED_DB_USER" --database="$$LOADED_DB_NAME" --execute="SELECT 1" >/dev/null
       interval: 5s
       timeout: 5s
       start_period: 30s
@@ -24,6 +29,9 @@ services:
       DB_URL: jdbc:mariadb://database:3306/${DB_NAME:-mimir}
       DB_USER: ${DB_USER:-mimir}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      LOADED_DB_URL: jdbc:mariadb://database:3306/${LOADED_DB_NAME:-loaded_data}
+      LOADED_DB_USER: ${LOADED_DB_USER:-mimir_loader}
+      LOADED_DB_PASSWORD: ${LOADED_DB_PASSWORD:?Set LOADED_DB_PASSWORD in .env}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       database:

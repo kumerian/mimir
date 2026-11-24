@@ -45,6 +45,7 @@ def run_tests(up_flags):
         FRONTEND_PORT="0",
         DB_PASSWORD=secrets.token_hex(32),
         DB_ROOT_PASSWORD=secrets.token_hex(32),
+        LOADED_DB_PASSWORD=secrets.token_hex(32) + "'" + "\\" + "$",
         LOG_LEVEL="INFO",
     )
     compose = ["docker", "compose"]

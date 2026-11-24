@@ -19,7 +19,7 @@ def fetch(path):
         return response.headers, response.read().decode("utf-8")
 
 
-def database_scalar(query):
+def database_query(query):
     result = subprocess.run(
         [
             "docker", "compose", "exec", "-T", "database", "sh", "-c",
@@ -29,7 +29,11 @@ def database_scalar(query):
         ],
         check=True, capture_output=True, text=True,
     )
-    return int(result.stdout.strip())
+    return result.stdout.strip()
+
+
+def database_scalar(query):
+    return int(database_query(query))
 
 
 def database_execute(query):
@@ -46,7 +50,143 @@ def database_execute(query):
         raise AssertionError(result.stderr.strip())
 
 
+def database_admin_execute(query):
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "database", "sh", "-c",
+            'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb --batch --skip-column-names '
+            '--execute "$1" --user=root',
+            "mimir-admin-query", query,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise AssertionError(result.stderr.strip())
+
+
+def loaded_data_scalar(query):
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "database", "sh", "-c",
+            'MYSQL_PWD="$LOADED_DB_PASSWORD" mariadb --batch --skip-column-names '
+            '--execute "$1" --database="$LOADED_DB_NAME" --user="$LOADED_DB_USER"',
+            "mimir-loaded-data-query", query,
+        ],
+        check=True, capture_output=True, text=True,
+    )
+    return result.stdout.strip()
+
+
+def loaded_data_execute(query):
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "database", "sh", "-c",
+            'MYSQL_PWD="$LOADED_DB_PASSWORD" mariadb --batch --skip-column-names '
+            '--execute "$1" --database="$LOADED_DB_NAME" --user="$LOADED_DB_USER"',
+            "mimir-loaded-data-query", query,
+        ],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise AssertionError(result.stderr.strip())
+    return result.stdout.strip()
+
+
 class DockerStackTest(unittest.TestCase):
+    def test_loaded_data_database_is_separate_permissioned_and_persistent(self):
+        suffix = uuid.uuid4().hex
+        table_name = f"persistence_{suffix}"
+        marker = f"loaded database persistence {suffix}"
+        database_execute(
+            "INSERT INTO application_log (occurred_at, log_level, source_name, message) "
+            f"VALUES (CURRENT_TIMESTAMP, 'INFO', 'LoadedDataTest', '{marker}')"
+        )
+        self.addCleanup(
+            database_execute,
+            f"DELETE FROM application_log WHERE message = '{marker}'",
+        )
+        loaded_data_execute(
+            f"CREATE TABLE `{table_name}` (value varchar(64) NOT NULL)"
+        )
+        self.addCleanup(
+            database_admin_execute,
+            f"DROP TABLE loaded_data.`{table_name}`",
+        )
+        loaded_data_execute(
+            f"INSERT INTO `{table_name}` (value) VALUES ('{marker}')"
+        )
+
+        self.assertEqual(loaded_data_scalar(f"SELECT value FROM `{table_name}`"), marker)
+        self.assertEqual(
+            database_scalar(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                f"WHERE table_schema = DATABASE() AND table_name = '{table_name}'"
+            ),
+            0,
+        )
+        self.assertEqual(
+            database_scalar(
+                "SELECT COUNT(*) FROM application_log "
+                f"WHERE source_name = 'LoadedDataTest' AND message = '{marker}'"
+            ),
+            1,
+        )
+        self.assertNotEqual(
+            loaded_data_scalar("SELECT DATABASE()"),
+            database_query("SELECT DATABASE()"),
+        )
+
+        denied_metadata_access = subprocess.run(
+            [
+                "docker", "compose", "exec", "-T", "database", "sh", "-c",
+                'MYSQL_PWD="$LOADED_DB_PASSWORD" mariadb --execute "$1" '
+                '--database="$LOADED_DB_NAME" --user="$LOADED_DB_USER"',
+                "mimir-loaded-data-query",
+                "SELECT COUNT(*) FROM mimir.application_log",
+            ],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(denied_metadata_access.returncode, 0)
+        denied_loaded_data_access = subprocess.run(
+            [
+                "docker", "compose", "exec", "-T", "database", "sh", "-c",
+                'mariadb --execute "$1" --database="$MARIADB_DATABASE" '
+                '--user="$MARIADB_USER" --password="$MARIADB_PASSWORD"',
+                "mimir-metadata-query",
+                f"SELECT COUNT(*) FROM loaded_data.`{table_name}`",
+            ],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(denied_loaded_data_access.returncode, 0)
+
+        for _ in range(2):
+            subprocess.run(["docker", "compose", "restart", "database"], check=True)
+            subprocess.run(
+                ["docker", "compose", "up", "--no-build", "--detach", "--wait",
+                 "--wait-timeout", "180", "database"],
+                check=True,
+            )
+            self.assertEqual(loaded_data_scalar(f"SELECT value FROM `{table_name}`"), marker)
+            self.assertEqual(
+                database_scalar(
+                    "SELECT COUNT(*) FROM application_log "
+                    f"WHERE source_name = 'LoadedDataTest' AND message = '{marker}'"
+                ),
+                1,
+            )
+
+        subprocess.run(["docker", "compose", "restart", "backend"], check=True)
+        subprocess.run(
+            ["docker", "compose", "up", "--no-build", "--detach", "--wait",
+             "--wait-timeout", "180", "backend"],
+            check=True,
+        )
+        self.assertEqual(
+            json.loads(fetch("/api/status")[1]),
+            {"application": "mimir", "database": "connected"},
+        )
+        self.assertEqual(loaded_data_scalar(f"SELECT value FROM `{table_name}`"), marker)
+
     def test_metadata_crud_relationships_and_persistence_after_restart(self):
         application_logs_before = database_scalar("SELECT COUNT(*) FROM application_log")
         suffix = uuid.uuid4().hex

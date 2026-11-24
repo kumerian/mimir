@@ -32,7 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:metadata;MODE=MariaDB;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa",
-        "spring.datasource.password="
+        "spring.datasource.password=",
+        "mimir.loaded-data.datasource.url=jdbc:h2:mem:loaded_api_test;MODE=MariaDB;DB_CLOSE_DELAY=-1",
+        "mimir.loaded-data.datasource.username=sa",
+        "mimir.loaded-data.datasource.password="
 })
 @AutoConfigureMockMvc
 @Transactional

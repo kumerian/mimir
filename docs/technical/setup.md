@@ -8,7 +8,7 @@ The application runs exactly three containers:
 | --- | --- | --- |
 | `frontend` | Angular 21, built with Node 24, served by Nginx | Published at `http://localhost:8080`; proxies `/api/` to `backend:8080` |
 | `backend` | Java 21, Spring Boot 3.5, Maven 3.9 | JDBC to `database:3306`; HTTP on internal port 8080 |
-| `database` | MariaDB 11.4 LTS | Internal port 3306; persistent named volume |
+| `database` | MariaDB 11.4 LTS | Internal port 3306; persistent named volume with separate metadata and loaded-data databases |
 
 The browser uses relative `/api` URLs, so Docker-only DNS names never reach
 the browser and CORS configuration is unnecessary. Compose creates the internal
@@ -106,19 +106,28 @@ provides the [metadata editor](../user/ingestion-metadata.md). Inspect failures
 with `docker compose logs --no-color`. Liquibase upgrades the database at backend
 startup; retain existing volumes when deploying new application versions.
 
-The example credentials are **local-development only**. Change both passwords
+The example credentials are **local-development only**. Change all database passwords
 in `.env` before using shared infrastructure; `.env` is ignored by Git and
 credentials are supplied at runtime, never baked into images. A non-root
 database account is used by Java. The backend image also runs as a non-root user.
 For production, supply managed secrets, TLS, access controls, and an appropriate
 external reverse proxy rather than exposing this scaffold directly.
 
-`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `FRONTEND_PORT`, and
-`LOG_LEVEL` are configurable in `.env`. Database passwords are required.
+`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `LOADED_DB_NAME`,
+`LOADED_DB_USER`, `LOADED_DB_PASSWORD`, `FRONTEND_PORT`, and `LOG_LEVEL` are
+configurable in `.env`. Database passwords are required.
 `LOG_LEVEL` defaults to `INFO`; see [logging and metadata audit](logging.md)
 for supported values. `IMAGE_TAG` defaults to `local`. MariaDB initialization
-settings only apply to an empty database volume; changing `.env` does not rotate
-credentials in an existing database.
+creates the metadata schema on an empty volume. The custom database entrypoint
+also idempotently creates the separate loaded-data schema and loader account on
+every database start, so deploying this version to an existing volume does not
+reset metadata or loaded data. It grants the loader account access only to the
+loaded-data schema, including table creation and data read/write operations;
+the application continues using the metadata account for metadata and logs.
+Changes to either database's root credentials are not applied to an existing
+volume automatically; the configured root password must match the one already
+stored in MariaDB. The loaded-data account password is reconciled from
+`LOADED_DB_PASSWORD` at each database start.
 
 ```sh
 make down
@@ -148,14 +157,16 @@ services:
 ```sh
 docker compose -f compose.yaml -f /tmp/mimir-dev-compose.yaml up --build --detach --wait database
 cd backend
-DB_PASSWORD=local-development-password ./mvnw spring-boot:run
+DB_PASSWORD=local-development-password \
+LOADED_DB_PASSWORD=local-development-loader-password \
+./mvnw spring-boot:run
 ```
 
 Use the same password as `.env`. The backend defaults to the local `mimir`
 database with user `mimir`; override `DB_URL` and `DB_USER` as needed.
 On Windows, create the override file at a local path and use that path in the
 Compose command. In PowerShell, start the backend with
-`$env:DB_PASSWORD = "local-development-password"; .\mvnw.cmd spring-boot:run`
+`$env:DB_PASSWORD = "local-development-password"; $env:LOADED_DB_PASSWORD = "local-development-loader-password"; .\mvnw.cmd spring-boot:run`
 from the `backend` directory.
 In another terminal:
 
@@ -219,12 +230,15 @@ tests. The Docker commands require the same Compose project and environment
 throughout; unlike `make test`, the individual commands above use the local
 stack and do not create or clean up an isolated test project.
 
-Java tests cover status success/failure, HTTP/health integration, the complete
+Java tests cover status success/failure, HTTP/health integration, separate
+metadata and loaded-data datasource behavior and connection failures, the complete
 Liquibase-backed metadata API using isolated H2 databases, and migration of a
 populated pre-scoped hierarchy. Angular tests cover
 loading, CRUD forms, relationship choices, validation, and visible request errors
 without a live backend. CI also runs a production Angular build on each host.
-Docker tests verify metadata CRUD, scoped-name uniqueness and reuse across
+Docker tests verify isolated loaded-data database provisioning, least-privilege
+access, persistence and repeatable provisioning across database and backend
+restarts, metadata CRUD, scoped-name uniqueness and reuse across
 parents on MariaDB, referential integrity, migration of a populated legacy
 MariaDB hierarchy, persistence and migration idempotence after backend restarts, and exactly
 three healthy containers, Angular assets, SPA navigation, real MariaDB-backed API
